@@ -219,10 +219,12 @@ export default function QuizDetailsPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-white">{quiz.title}</h1>
         <div className="flex gap-2">
-          <Button className="bg-green-600 hover:bg-green-700">
-            <Play className="h-4 w-4 mr-2" />
-            Start Quiz
-          </Button>
+          <Link href={`/quiz/take/${quizId}`}>
+            <Button className="bg-green-600 hover:bg-green-700">
+              <Play className="h-4 w-4 mr-2" />
+              Start Quiz
+            </Button>
+          </Link>
           <div className="relative">
             <Button
               variant="outline"
@@ -355,10 +357,12 @@ export default function QuizDetailsPage() {
               <CardTitle className="text-white">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 flex-grow">
-              <Button className="w-full bg-green-600 hover:bg-green-700 justify-start">
-                <Play className="h-4 w-4 mr-2" />
-                Take Quiz
-              </Button>
+              <Link href={`/quiz/take/${quizId}`} className="w-full">
+                <Button className="w-full bg-green-600 hover:bg-green-700 justify-start">
+                  <Play className="h-4 w-4 mr-2" />
+                  Take Quiz
+                </Button>
+              </Link>
               <Link href={`/quiz/${quizId}/edit`} className="w-full">
                 <Button variant="outline" className="w-full justify-start">
                   <Plus className="h-4 w-4 mr-2" />
