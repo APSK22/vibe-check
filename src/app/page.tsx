@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { motion } from "@/lib/motion";
-import { Shield, Sparkles, Share2, CheckCircle2, Bot, Brain, Wand2 } from "lucide-react";
+import { Shield, Share2, CheckCircle2, Bot, Brain, Wand2 } from "lucide-react";
 
 export default function Home() {
   return (
