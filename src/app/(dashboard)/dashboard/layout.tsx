@@ -30,9 +30,10 @@ export default function DashboardLayout({
               <Link href="/dashboard/join" className="text-white hover:text-blue-300 transition-colors">
                 Join Quiz
               </Link>
-              <Link href="/dashboard/leaderboard" className="text-white hover:text-blue-300 transition-colors">
-                Leaderboard
+              <Link href="/dashboard/attempts" className="text-white hover:text-blue-300 transition-colors">
+                My Attempts
               </Link>
+             
             </div>
           </div>
           <div className="flex items-center gap-4">

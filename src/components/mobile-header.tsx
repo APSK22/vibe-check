@@ -2,12 +2,17 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { UserButton } from "@clerk/nextjs";
 import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from "@/lib/motion";
 
 export default function MobileHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const pathname = usePathname();
+  
+  // Only show on dashboard and quiz pages
+  if (!pathname.includes('/dashboard') && !pathname.includes('/quiz')) return null;
   
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -78,12 +83,13 @@ export default function MobileHeader() {
                 Join Quiz
               </Link>
               <Link 
-                href="/dashboard/leaderboard" 
+                href="/dashboard/attempts" 
                 className="text-lg text-white hover:text-blue-300 transition-colors"
                 onClick={toggleMenu}
               >
-                Leaderboard
+                My Attempts
               </Link>
+              
             </nav>
           </motion.div>
         )}

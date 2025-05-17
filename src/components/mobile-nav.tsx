@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Home, PlusCircle, Users, Trophy } from 'lucide-react';
+import { Home, PlusCircle, Users, History } from 'lucide-react';
 
 export default function MobileNav() {
   const pathname = usePathname();
@@ -29,8 +29,8 @@ export default function MobileNav() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
   
-  // Only show mobile nav on dashboard routes
-  if (!pathname.includes('/dashboard')) return null;
+  // Show mobile nav on dashboard routes and quiz pages
+  if (!pathname.includes('/dashboard') && !pathname.includes('/quiz')) return null;
   
   return (
     <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-50 bg-gray-900 border-t border-blue-500/30 transition-transform duration-300 ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
@@ -41,7 +41,7 @@ export default function MobileNav() {
             pathname === '/dashboard' ? 'text-blue-400' : 'text-white'
           }`}
         >
-          <Home size={20} />
+          <Home size={18} />
           <span className="text-xs mt-1">Home</span>
         </Link>
         
@@ -51,7 +51,7 @@ export default function MobileNav() {
             pathname.includes('/create') ? 'text-blue-400' : 'text-white'
           }`}
         >
-          <PlusCircle size={20} />
+          <PlusCircle size={18} />
           <span className="text-xs mt-1">Create</span>
         </Link>
         
@@ -61,19 +61,21 @@ export default function MobileNav() {
             pathname.includes('/join') ? 'text-blue-400' : 'text-white'
           }`}
         >
-          <Users size={20} />
+          <Users size={18} />
           <span className="text-xs mt-1">Join</span>
         </Link>
         
         <Link 
-          href="/dashboard/leaderboard"
+          href="/dashboard/attempts"
           className={`flex flex-col items-center justify-center w-full h-full ${
-            pathname.includes('/leaderboard') ? 'text-blue-400' : 'text-white'
+            pathname.includes('/attempts') ? 'text-blue-400' : 'text-white'
           }`}
         >
-          <Trophy size={20} />
-          <span className="text-xs mt-1">Scores</span>
+          <History size={18} />
+          <span className="text-xs mt-1">History</span>
         </Link>
+        
+        
       </div>
     </nav>
   );

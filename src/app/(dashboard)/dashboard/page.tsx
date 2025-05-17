@@ -8,82 +8,202 @@ import { motion } from "@/lib/motion";
 import { useState, useEffect } from "react";
 import { useSupabase } from "@/lib/supabase";
 import { useUser } from "@clerk/nextjs";
+import { toast } from "sonner";
+import { Sparkles, Trash2, Award, Calendar } from "lucide-react";
+import { format } from "date-fns";
 
 interface Quiz {
   id: string;
   title: string;
   description: string;
   questionCount: number;
+  quiz_type?: "scored" | "vibe";
+  created_at: string;
 }
 
-interface RecentQuiz {
+interface RecentAttempt {
   id: string;
-  title: string;
-  creator: string;
-  completedAt: string;
-  score: string;
+  quiz_id: string;
+  completed_at: string;
+  score: number;
+  max_score: number;
+  quiz_title: string;
+  quiz_description: string;
+  quiz_type: "scored" | "vibe";
+  vibe_analysis?: string;
 }
 
 export default function DashboardPage() {
   const [myQuizzes, setMyQuizzes] = useState<Quiz[]>([]);
-  const [recentQuizzes] = useState<RecentQuiz[]>([]);
+  const [recentAttempts, setRecentAttempts] = useState<RecentAttempt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const supabase = useSupabase();
   const { user } = useUser();
   
   useEffect(() => {
-    async function loadQuizzes() {
+    async function fetchQuizzes() {
       if (!user) return;
       
       try {
-        // Fetch quiz basic info
+        // Fetch user's created quizzes
         const { data: quizData, error: quizError } = await supabase
           .from('quizzes')
-          .select('id, title, description')
-          .eq('created_by', user.id);
+          .select('id, title, description, created_at, quiz_type')
+          .eq('created_by', user.id)
+          .order('created_at', { ascending: false });
         
         if (quizError) {
-          console.error('Error loading quizzes:', quizError);
+          console.error('Error fetching quizzes:', quizError);
           return;
         }
         
-        if (quizData) {
-          // Fetch question counts for each quiz
-          const quizzesWithCounts = await Promise.all(quizData.map(async (quiz) => {
-            const { count, error: countError } = await supabase
-              .from('questions')
-              .select('*', { count: 'exact', head: true })
-              .eq('quiz_id', quiz.id);
+        // Get question count for each quiz
+        if (quizData && quizData.length > 0) {
+          const quizzesWithQuestionCounts = await Promise.all(
+            quizData.map(async (quiz) => {
+              const { count } = await supabase
+                .from('questions')
+                .select('id', { count: 'exact', head: true })
+                .eq('quiz_id', quiz.id);
               
-            if (countError) {
-              console.error('Error getting question count:', countError);
               return {
-                id: quiz.id,
-                title: quiz.title,
-                description: quiz.description || '',
-                questionCount: 0
+                ...quiz,
+                questionCount: count || 0
               };
-            }
-            
-            return {
-              id: quiz.id,
-              title: quiz.title,
-              description: quiz.description || '',
-              questionCount: count || 0
-            };
-          }));
+            })
+          );
           
-          setMyQuizzes(quizzesWithCounts);
+          setMyQuizzes(quizzesWithQuestionCounts);
+        } else {
+          setMyQuizzes([]);
         }
+        
+        // Fetch user's recent quiz attempts - using the same logic as attempts page
+        const { data: submissionsData, error: submissionsError } = await supabase
+          .from('quiz_submissions')
+          .select(`
+            id,
+            quiz_id,
+            completed_at,
+            score,
+            max_score,
+            user_id
+          `)
+          .eq('user_id', user.id)
+          .order('completed_at', { ascending: false })
+          .limit(5);
+        
+        if (submissionsError) {
+          console.error("Error fetching submissions:", submissionsError);
+          return;
+        }
+        
+        if (!submissionsData || submissionsData.length === 0) {
+          console.log("No quiz submissions found");
+          setRecentAttempts([]);
+          return;
+        }
+        
+        // Fetch quiz details for all quiz_ids in one go
+        const quizIds = submissionsData.map(sub => sub.quiz_id);
+        const { data: attemptQuizData, error: quizLookupError } = await supabase
+          .from('quizzes')
+          .select('id, title, description, quiz_type')
+          .in('id', quizIds);
+        
+        if (quizLookupError) {
+          console.error("Error fetching quiz details:", quizLookupError);
+        }
+        
+        // Create a map of quiz details for efficient lookup
+        const quizMap = new Map();
+        if (attemptQuizData) {
+          attemptQuizData.forEach(quiz => {
+            quizMap.set(quiz.id, quiz);
+          });
+        }
+        
+        // Fetch vibe results for vibe-type quizzes
+        const submissionIds = submissionsData.map(sub => sub.id);
+        const { data: vibeData, error: vibeError } = await supabase
+          .from('vibe_results')
+          .select('submission_id, vibe_analysis')
+          .in('submission_id', submissionIds);
+        
+        if (vibeError) {
+          console.log("Error fetching vibe results:", vibeError);
+        }
+        
+        // Create a map of vibe results for efficient lookup
+        const vibeMap = new Map();
+        if (vibeData) {
+          vibeData.forEach(vibe => {
+            vibeMap.set(vibe.submission_id, vibe);
+          });
+        }
+        
+        // Combine all the data
+        const combinedAttempts = submissionsData.map(submission => {
+          const quiz = quizMap.get(submission.quiz_id) || { 
+            title: "Unknown Quiz", 
+            description: "", 
+            quiz_type: "scored" 
+          };
+          
+          const vibe = vibeMap.get(submission.id);
+          
+          return {
+            id: submission.id,
+            quiz_id: submission.quiz_id,
+            completed_at: submission.completed_at,
+            score: submission.score,
+            max_score: submission.max_score,
+            quiz_title: quiz.title,
+            quiz_description: quiz.description,
+            quiz_type: quiz.quiz_type || "scored",
+            vibe_analysis: vibe?.vibe_analysis
+          };
+        });
+        
+        console.log("Recent attempts:", combinedAttempts);
+        setRecentAttempts(combinedAttempts);
       } catch (error) {
-        console.error('Error fetching quizzes:', error);
+        console.error('Error loading dashboard data:', error);
       } finally {
         setIsLoading(false);
       }
     }
     
-    loadQuizzes();
-  }, [supabase, user]);
+    fetchQuizzes();
+  }, [user, supabase]);
+
+  const handleDeleteQuiz = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!confirm("Are you sure you want to delete this quiz? This cannot be undone.")) {
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from("quizzes")
+        .delete()
+        .eq("id", id);
+        
+      if (error) {
+        console.error("Error deleting quiz:", error);
+        toast.error("Failed to delete quiz");
+        return;
+      }
+      
+      toast.success("Quiz deleted successfully");
+      setMyQuizzes(myQuizzes.filter(quiz => quiz.id !== id));
+    } catch (error) {
+      console.error("Error in handleDeleteQuiz:", error);
+      toast.error("Failed to delete quiz");
+    }
+  };
   
   const container = {
     hidden: { opacity: 0 },
@@ -99,37 +219,37 @@ export default function DashboardPage() {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0 }
   };
+  
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <Link href="/dashboard/create">
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              Create Quiz
-            </Button>
+            <Button className="bg-blue-600 hover:bg-blue-700">Create Quiz</Button>
           </Link>
           <Link href="/dashboard/join">
-            <Button variant="outline" className="border-blue-500/30 hover:bg-gray-900 text-white">
-              Join Quiz
-            </Button>
+            <Button variant="outline">Join Quiz</Button>
           </Link>
         </div>
       </div>
       
-      <Tabs defaultValue="my-quizzes" className="w-full">
-        <TabsList className="bg-gray-900 border border-blue-500/30">
-          <TabsTrigger value="my-quizzes" className="data-[state=active]:bg-gray-800 data-[state=active]:text-blue-300">My Quizzes</TabsTrigger>
-          <TabsTrigger value="recent" className="data-[state=active]:bg-gray-800 data-[state=active]:text-blue-300">Recent Activity</TabsTrigger>
+      <Tabs defaultValue="myQuizzes" className="w-full">
+        <TabsList>
+          <TabsTrigger value="myQuizzes">My Created Quizzes</TabsTrigger>
+          <TabsTrigger value="recent">Recent Activity</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="my-quizzes" className="pt-4">
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-          ) : myQuizzes.length > 0 ? (
+        <TabsContent value="myQuizzes" className="pt-4">
+          {myQuizzes.length > 0 ? (
             <motion.div 
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
               variants={container}
@@ -138,20 +258,36 @@ export default function DashboardPage() {
             >
               {myQuizzes.map((quiz) => (
                 <motion.div key={quiz.id} variants={item}>
-                  <Card className="bg-gray-900 border-blue-500/30 hover:border-blue-500 transition-all cursor-pointer overflow-hidden">
-                    <CardHeader>
-                      <CardTitle className="text-white">{quiz.title}</CardTitle>
-                      <CardDescription className="text-blue-200">{quiz.description}</CardDescription>
-                    </CardHeader>
-                    <CardFooter className="flex justify-between border-t border-blue-500/20 pt-4">
-                      <span className="text-sm text-blue-200">{quiz.questionCount} questions</span>
-                      <Link href={`/quiz/${quiz.id}`}>
+                  <Link href={`/quiz/${quiz.id}`} className="block h-full">
+                    <Card className={`h-full bg-gray-900 hover:border-blue-500 transition-all cursor-pointer overflow-hidden ${quiz.quiz_type === 'vibe' ? 'border-purple-500/30' : 'border-blue-500/30'}`}>
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <CardTitle className="flex items-center gap-2 text-white">
+                              {quiz.quiz_type === 'vibe' && (
+                                <Sparkles className="h-4 w-4 text-purple-400" />
+                              )}
+                              <span>{quiz.title}</span>
+                            </CardTitle>
+                            <CardDescription className="text-blue-200">{quiz.description}</CardDescription>
+                          </div>
+                          <button
+                            onClick={(e) => handleDeleteQuiz(quiz.id, e)}
+                            className="text-gray-400 hover:text-red-400 transition-colors p-1"
+                            title="Delete quiz"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </CardHeader>
+                      <CardFooter className="flex justify-between border-t border-blue-500/20 pt-4">
+                        <span className="text-sm text-blue-200">{quiz.questionCount} questions</span>
                         <Button variant="ghost" className="text-blue-300 hover:text-blue-200 hover:bg-gray-800">
                           View Details
                         </Button>
-                      </Link>
-                    </CardFooter>
-                  </Card>
+                      </CardFooter>
+                    </Card>
+                  </Link>
                 </motion.div>
               ))}
             </motion.div>
@@ -175,27 +311,62 @@ export default function DashboardPage() {
         </TabsContent>
         
         <TabsContent value="recent" className="pt-4">
-          {recentQuizzes.length > 0 ? (
+          <h2 className="text-lg font-medium text-white mb-4">Recent Attempts</h2>
+          {recentAttempts.length > 0 ? (
             <motion.div 
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
               variants={container}
               initial="hidden"
               animate="show"
             >
-              {recentQuizzes.map((quiz) => (
-                <motion.div key={quiz.id} variants={item}>
-                  <Card className="bg-gray-900 border-blue-500/30 hover:border-blue-500 transition-all cursor-pointer">
-                    <CardHeader>
-                      <CardTitle className="text-white">{quiz.title}</CardTitle>
-                      <CardDescription className="text-blue-200">By {quiz.creator}</CardDescription>
-                    </CardHeader>
-                    <CardFooter className="flex justify-between border-t border-blue-500/20 pt-4">
-                      <span className="text-sm text-blue-200">Completed {quiz.completedAt}</span>
-                      <span className="text-sm font-medium text-blue-300">Score: {quiz.score}</span>
-                    </CardFooter>
-                  </Card>
+              {recentAttempts.map((attempt) => (
+                <motion.div key={attempt.id} variants={item}>
+                  <Link href={`/dashboard/attempts`}>
+                    <Card className={`h-full bg-gray-900 hover:border-blue-500 transition-all cursor-pointer ${attempt.quiz_type === 'vibe' ? 'border-purple-500/30' : 'border-blue-500/30'}`}>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-white">
+                          {attempt.quiz_type === 'vibe' && (
+                            <Sparkles className="h-4 w-4 text-purple-400" />
+                          )}
+                          <span className="line-clamp-1">{attempt.quiz_title}</span>
+                        </CardTitle>
+                        <CardDescription className="line-clamp-2">
+                          {attempt.quiz_description}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardFooter className="flex justify-between items-center border-t border-blue-500/20 pt-3">
+                        <div className="flex items-center gap-1 text-sm text-blue-200">
+                          <Calendar className="h-3 w-3" />
+                          <span>
+                            {format(new Date(attempt.completed_at), "MMM d, yyyy")}
+                          </span>
+                        </div>
+                        {attempt.quiz_type === 'scored' ? (
+                          <div className="flex items-center gap-2">
+                            <Award className="h-4 w-4 text-yellow-400" />
+                            <span className="text-sm font-medium text-blue-300">
+                              {attempt.score}/{attempt.max_score}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="bg-purple-900/20 px-2 py-1 rounded text-xs text-purple-300">
+                            Vibe Check
+                          </div>
+                        )}
+                      </CardFooter>
+                    </Card>
+                  </Link>
                 </motion.div>
               ))}
+              
+              <motion.div variants={item}>
+                <Link href="/dashboard/attempts">
+                  <Card className="h-full flex flex-col items-center justify-center p-6 bg-gray-900 border-dashed border-gray-700 hover:border-blue-500 transition-all cursor-pointer">
+                    <p className="text-blue-400 font-medium">View All Attempts</p>
+                    <p className="text-xs text-gray-400 mt-1">See your complete history</p>
+                  </Card>
+                </Link>
+              </motion.div>
             </motion.div>
           ) : (
             <Card className="bg-gray-900 border-blue-500/30">

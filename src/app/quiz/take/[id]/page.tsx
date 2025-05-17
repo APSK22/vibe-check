@@ -576,7 +576,7 @@ export default function TakeQuizPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-2 sm:p-4">
       <div className="mb-4 sm:mb-8 flex items-center justify-between">
-        <Link href={`/quiz/${quizId}`}>
+        <Link href={`/dashboard`}>
           <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Exit Quiz

@@ -1,18 +1,238 @@
-'use client';
+"use client";
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { useState, useEffect } from "react";
+import { useSupabase } from "@/lib/supabase";
+import { useUser } from "@clerk/nextjs";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "@/lib/motion";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Sparkles, Trash2, Users, Calendar } from "lucide-react";
+import { format } from "date-fns";
+
+interface Quiz {
+  id: string;
+  title: string;
+  description: string;
+  created_at: string;
+  created_by: string;
+  is_public: boolean;
+  quiz_type: "scored" | "vibe";
+  submission_count: number;
+}
 
 export default function JoinQuizPage() {
-  const publicQuizzes = [
-    // In a real implementation, these would be fetched from Supabase
-    { id: '1', title: 'Entertainment Quiz', creator: 'John Doe', questions: 10, participants: 25 },
-    { id: '2', title: 'Science Trivia', creator: 'Jane Smith', questions: 15, participants: 42 },
-    { id: '3', title: '90s Pop Culture', creator: 'Mike Johnson', questions: 12, participants: 18 },
-  ];
+  const supabase = useSupabase();
+  const { user } = useUser();
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [publicQuizzes, setPublicQuizzes] = useState<Quiz[]>([]);
+  const [myQuizzes, setMyQuizzes] = useState<Quiz[]>([]);
+  const [quizCode, setQuizCode] = useState("");
+  
+  useEffect(() => {
+    async function fetchQuizzes() {
+      if (!user) return;
+      
+      setIsLoading(true);
+      
+      try {
+        // Fetch public quizzes
+        const { data: publicData, error: publicError } = await supabase
+          .from("quizzes")
+          .select(`
+            id, 
+            title, 
+            description, 
+            created_at, 
+            created_by,
+            is_public,
+            quiz_type
+          `)
+          .eq("is_public", true)
+          .order("created_at", { ascending: false });
+          
+        if (publicError) {
+          console.error("Error fetching public quizzes:", publicError);
+          toast.error("Failed to load public quizzes");
+        } else {
+          // Fetch submission count for each quiz
+          const publicQuizzesWithMetadata = await Promise.all((publicData || []).map(async (quiz) => {
+            // Get submission count
+            const { count } = await supabase
+              .from("quiz_submissions")
+              .select("id", { count: 'exact', head: true })
+              .eq("quiz_id", quiz.id);
+              
+            return {
+              ...quiz,
+              submission_count: count || 0
+            };
+          }));
+          
+          setPublicQuizzes(publicQuizzesWithMetadata);
+        }
+        
+        // Fetch user's own quizzes
+        const { data: myData, error: myError } = await supabase
+          .from("quizzes")
+          .select(`
+            id, 
+            title, 
+            description, 
+            created_at, 
+            created_by,
+            is_public,
+            quiz_type
+          `)
+          .eq("created_by", user.id)
+          .order("created_at", { ascending: false });
+          
+        if (myError) {
+          console.error("Error fetching user's quizzes:", myError);
+        } else {
+          // Get submission count for each quiz
+          const myQuizzesWithMetadata = await Promise.all((myData || []).map(async (quiz) => {
+            const { count } = await supabase
+              .from("quiz_submissions")
+              .select("id", { count: 'exact', head: true })
+              .eq("quiz_id", quiz.id);
+              
+            return {
+              ...quiz,
+              submission_count: count || 0
+            };
+          }));
+          
+          setMyQuizzes(myQuizzesWithMetadata);
+        }
+      } catch (error) {
+        console.error("Error in fetchQuizzes:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    fetchQuizzes();
+  }, [user, supabase]);
+  
+  const handleJoinByCode = async () => {
+    if (!quizCode.trim()) {
+      toast.error("Please enter a quiz code");
+      return;
+    }
+    
+    try {
+      // Search for quiz by ID (assuming quizCode is the UUID)
+      const { data, error } = await supabase
+        .from("quizzes")
+        .select("id")
+        .eq("id", quizCode)
+        .single();
+        
+      if (error || !data) {
+        toast.error("Invalid or expired quiz code");
+        return;
+      }
+      
+      // Navigate to the quiz
+      router.push(`/quiz/take/${data.id}`);
+    } catch (error) {
+      console.error("Error joining quiz by code:", error);
+      toast.error("Failed to join quiz");
+    }
+  };
+  
+  const handleDeleteQuiz = async (quizId: string) => {
+    if (!confirm("Are you sure you want to delete this quiz? This cannot be undone.")) {
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from("quizzes")
+        .delete()
+        .eq("id", quizId);
+        
+      if (error) {
+        console.error("Error deleting quiz:", error);
+        toast.error("Failed to delete quiz");
+        return;
+      }
+      
+      toast.success("Quiz deleted successfully");
+      setMyQuizzes(myQuizzes.filter(quiz => quiz.id !== quizId));
+    } catch (error) {
+      console.error("Error in handleDeleteQuiz:", error);
+      toast.error("Failed to delete quiz");
+    }
+  };
+  
+  // Render quiz card
+  const renderQuizCard = (quiz: Quiz, showDelete = false) => (
+    <motion.div
+      key={quiz.id}
+      variants={{
+        hidden: { opacity: 0, y: 20 },
+        show: { opacity: 1, y: 0 }
+      }}
+    >
+      <Card className={`h-full flex flex-col hover:border-blue-500/50 transition-all ${quiz.quiz_type === 'vibe' ? 'border-purple-500/30' : 'border-blue-500/30'}`}>
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start">
+            <div className="flex-1">
+              <CardTitle className="flex items-center gap-2">
+                {quiz.quiz_type === 'vibe' && (
+                  <Sparkles className="h-4 w-4 text-purple-400" />
+                )}
+                <span className="line-clamp-1">{quiz.title}</span>
+              </CardTitle>
+              {showDelete && (
+                <CardDescription>
+                  <span>Your quiz</span>
+                </CardDescription>
+              )}
+            </div>
+            {showDelete && (
+              <button
+                onClick={() => handleDeleteQuiz(quiz.id)}
+                className="text-gray-400 hover:text-red-400 transition-colors p-1"
+                title="Delete quiz"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="py-2 flex-grow">
+          <p className="text-gray-300 line-clamp-2 text-sm mb-3">
+            {quiz.description || `A ${quiz.quiz_type === 'vibe' ? 'vibe check' : 'quiz'}`}
+          </p>
+          <div className="flex justify-between text-xs text-gray-400">
+            <div className="flex items-center gap-1">
+              <Users size={12} />
+              <span>{quiz.submission_count} attempts</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Calendar size={12} />
+              <span>{format(new Date(quiz.created_at), "MMM d, yyyy")}</span>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter className="pt-2">
+          <Link href={`/quiz/take/${quiz.id}`} className="w-full">
+            <Button className="w-full bg-blue-600 hover:bg-blue-700">
+              {quiz.quiz_type === 'vibe' ? 'Take Vibe Check' : 'Take Quiz'}
+            </Button>
+          </Link>
+        </CardFooter>
+      </Card>
+    </motion.div>
+  );
 
   return (
     <div className="space-y-8">
@@ -24,6 +244,7 @@ export default function JoinQuizPage() {
         <TabsList>
           <TabsTrigger value="code">Enter Quiz Code</TabsTrigger>
           <TabsTrigger value="public">Browse Public Quizzes</TabsTrigger>
+          <TabsTrigger value="my">My Quizzes</TabsTrigger>
         </TabsList>
         
         <TabsContent value="code" className="pt-4">
@@ -43,10 +264,15 @@ export default function JoinQuizPage() {
                 <div className="space-y-4">
                   <div className="flex gap-3">
                     <Input 
-                      placeholder="Enter quiz code (e.g., QUIZ-123)"
+                      placeholder="Enter quiz ID (e.g., 123e4567-e89b-...)"
                       className="flex-1"
+                      value={quizCode}
+                      onChange={(e) => setQuizCode(e.target.value)}
                     />
-                    <Button className="bg-blue-600 hover:bg-blue-700">
+                    <Button 
+                      className="bg-blue-600 hover:bg-blue-700"
+                      onClick={handleJoinByCode}
+                    >
                       Join
                     </Button>
                   </div>
@@ -57,6 +283,15 @@ export default function JoinQuizPage() {
         </TabsContent>
         
         <TabsContent value="public" className="pt-4">
+          {isLoading ? (
+            <div className="flex justify-center py-10">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          ) : publicQuizzes.length === 0 ? (
+            <div className="text-center py-10">
+              <p className="text-gray-400">No public quizzes available at the moment.</p>
+            </div>
+          ) : (
           <motion.div
             variants={{
               hidden: { opacity: 0 },
@@ -71,34 +306,43 @@ export default function JoinQuizPage() {
             animate="show"
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            {publicQuizzes.map((quiz) => (
+              {publicQuizzes.map(quiz => renderQuizCard(quiz))}
+            </motion.div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="my" className="pt-4">
+          {isLoading ? (
+            <div className="flex justify-center py-10">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          ) : myQuizzes.length === 0 ? (
+            <div className="text-center py-10">
+              <p className="text-gray-400">You haven&apos;t created any quizzes yet.</p>
+              <Link href="/dashboard/create">
+                <Button className="mt-4 bg-blue-600 hover:bg-blue-700">
+                  Create Your First Quiz
+                </Button>
+              </Link>
+            </div>
+          ) : (
               <motion.div
-                key={quiz.id}
                 variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  show: { opacity: 1, y: 0 }
-                }}
-              >
-                <Card className="hover:border-blue-500 transition-all cursor-pointer">
-                  <CardHeader>
-                    <CardTitle>{quiz.title}</CardTitle>
-                    <CardDescription>Created by {quiz.creator}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-between text-sm text-blue-200">
-                      <span>{quiz.questions} questions</span>
-                      <span>{quiz.participants} participants</span>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="pt-4">
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                      Join Quiz
-                    </Button>
-                  </CardFooter>
-                </Card>
+                hidden: { opacity: 0 },
+                show: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.1
+                  }
+                }
+              }}
+              initial="hidden"
+              animate="show"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
+              {myQuizzes.map(quiz => renderQuizCard(quiz, true))}
               </motion.div>
-            ))}
-          </motion.div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
