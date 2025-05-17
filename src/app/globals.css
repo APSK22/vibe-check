@@ -120,3 +120,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Add these animation classes for loading spinner */
+@keyframes reverse-spin {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+.animate-reverse {
+  animation: reverse-spin 1.5s linear infinite;
+}
+
+.animate-delay-500 {
+  animation-delay: 0.5s;
+}

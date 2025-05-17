@@ -1,5 +1,7 @@
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
+import MobileNav from "@/components/mobile-nav";
+import MobileHeader from "@/components/mobile-header";
 
 export default function DashboardLayout({
   children,
@@ -7,14 +9,18 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-black text-white">
-      <nav className="border-b border-blue-500/30">
+    <div className="min-h-screen bg-black text-white pb-16 md:pb-0">
+      {/* Mobile Header */}
+      <MobileHeader />
+      
+      {/* Desktop Navigation */}
+      <nav className="hidden md:block border-b border-blue-500/30">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-8">
             <Link href="/dashboard" className="text-xl font-bold text-blue-400">
               Vibe Check
             </Link>
-            <div className="hidden md:flex gap-6">
+            <div className="flex gap-6">
               <Link href="/dashboard" className="text-white hover:text-blue-300 transition-colors">
                 Dashboard
               </Link>
@@ -46,9 +52,14 @@ export default function DashboardLayout({
           </div>
         </div>
       </nav>
+      
+      {/* Main Content */}
       <main className="container mx-auto p-4 md:p-8">
         {children}
       </main>
+      
+      {/* Mobile Bottom Navigation */}
+      <MobileNav />
     </div>
   );
 } 

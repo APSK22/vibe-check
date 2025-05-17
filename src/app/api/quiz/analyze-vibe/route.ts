@@ -190,9 +190,11 @@ export async function POST(req: NextRequest) {
       .from("vibe_results")
       .insert({
         submission_id: submissionId,
+        quiz_id: quizId,
+        user_id: userId || 'anonymous',
         vibe_analysis: vibeAnalysis.vibeAnalysis,
         vibe_categories: vibeAnalysis.vibeCategories || {},
-        analyzed_by: userId // Use the userId here
+        analyzed_by: 'ai'
       });
       
     if (saveError) {

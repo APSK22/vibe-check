@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { useSupabase } from "@/lib/supabase";
 import { useUser, useClerk } from "@clerk/nextjs";
-import { ArrowLeft, ArrowRight, Check, Clock, Award, AlertCircle, Sparkles, UserIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Clock, Award, AlertCircle, UserIcon } from "lucide-react";
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
@@ -60,21 +60,15 @@ export default function TakeQuizPage() {
   const [vibeAnalysis, setVibeAnalysis] = useState<VibeAnalysis | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   
-  // Check if user is authenticated
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      // Store the current URL to redirect back after login
-      sessionStorage.setItem('redirectAfterSignIn', `/quiz/take/${quizId}`);
-    }
-  }, [isLoaded, isSignedIn, quizId]);
-  
   // Load quiz data
   useEffect(() => {
     async function loadQuizData() {
       if (!quizId) return;
       
       try {
-        // Load quiz details
+        setIsLoading(true);
+        
+        // Load quiz details - always load basic quiz info
         const { data: quizData, error: quizError } = await supabase
           .from('quizzes')
           .select('*')
@@ -84,9 +78,21 @@ export default function TakeQuizPage() {
         if (quizError) {
           console.error('Error loading quiz:', quizError);
           setError('Failed to load quiz');
+          setIsLoading(false);
           return;
         }
         
+        // If not signed in, just store the basic quiz info
+        if (!isSignedIn) {
+          setQuiz({
+            ...quizData,
+            questions: []
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        // If signed in, load full quiz data with questions
         // Load questions
         const { data: questionsData, error: questionsError } = await supabase
           .from('questions')
@@ -97,6 +103,7 @@ export default function TakeQuizPage() {
         if (questionsError) {
           console.error('Error loading questions:', questionsError);
           setError('Failed to load questions');
+          setIsLoading(false);
           return;
         }
         
@@ -132,7 +139,6 @@ export default function TakeQuizPage() {
         
         // Initialize start time
         setStartTime(Date.now());
-        
       } catch (error) {
         console.error('Error in loadQuizData:', error);
         setError('An unexpected error occurred');
@@ -141,11 +147,7 @@ export default function TakeQuizPage() {
       }
     }
     
-    if (isSignedIn) {
-      loadQuizData();
-    } else {
-      setIsLoading(false);
-    }
+    loadQuizData();
   }, [quizId, supabase, isSignedIn]);
   
   // Timer for tracking time spent
@@ -177,7 +179,7 @@ export default function TakeQuizPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-xl text-white">Sign in to Take the Quiz</CardTitle>
             <CardDescription className="text-blue-300">
-              You need to be signed in to take quizzes
+              You need to be signed in to take &ldquo;{quiz?.title || 'this quiz'}&rdquo;
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center space-y-4">
@@ -188,8 +190,9 @@ export default function TakeQuizPage() {
             <Button 
               className="w-full bg-blue-600 hover:bg-blue-700"
               onClick={() => {
+                // Use a direct approach with redirectUrl
                 openSignIn({
-                  redirectUrl: `/quiz/take/${quizId}`
+                  redirectUrl: window.location.href
                 });
               }}
             >
@@ -373,7 +376,9 @@ export default function TakeQuizPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-        <p className="text-blue-300">Loading quiz...</p>
+        <p className="text-blue-300">
+          {quiz?.title ? `Loading "${quiz.title}"...` : 'Loading quiz...'}
+        </p>
       </div>
     );
   }
@@ -408,44 +413,47 @@ export default function TakeQuizPage() {
             
             <CardContent className="space-y-6">
               {loadingAnalysis ? (
-                <div className="flex flex-col items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mb-4"></div>
-                  <p className="text-purple-300">Analyzing your vibe...</p>
-                </div>
-              ) : vibeAnalysis ? (
-                <div className="text-center py-4">
-                  <div className="inline-flex mb-4">
-                    <Sparkles className="h-12 w-12 text-purple-500" />
-                  </div>
-                  
-                  <div className="mt-4 space-y-4">
-                    <h3 className="text-lg md:text-xl font-semibold text-white">
-                      Your Vibe
-                    </h3>
-                    <div className="bg-gray-800 rounded-lg p-4 sm:p-6 text-left">
-                      <p className="text-blue-200 whitespace-pre-wrap text-sm sm:text-base">{vibeAnalysis.vibeAnalysis}</p>
+                <div className="flex flex-col items-center justify-center space-y-4">
+                  <div className="relative w-16 h-16">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="h-16 w-16 rounded-full border-t-2 border-b-2 border-blue-400 animate-spin"></div>
                     </div>
-                    
-                    {vibeAnalysis.vibeCategories && Object.keys(vibeAnalysis.vibeCategories).length > 0 && (
-                      <div className="mt-4 sm:mt-6">
-                        <h4 className="text-base md:text-lg font-medium text-white mb-3">Your Vibe Categories</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                          {Object.entries(vibeAnalysis.vibeCategories).slice(0, 6).map(([category, value]) => (
-                            <div key={category} className="bg-gray-800/50 border border-gray-700 rounded-md p-2 sm:p-3 flex justify-between">
-                              <span className="text-gray-300 capitalize text-sm sm:text-base">{category}</span>
-                              <span className="text-purple-300 font-medium text-sm sm:text-base">{value}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <p className="text-gray-400 mt-2 text-sm">Time: {formatTime(timeSpent)}</p>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="h-12 w-12 rounded-full border-r-2 border-l-2 border-purple-400 animate-spin animate-reverse"></div>
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="h-8 w-8 rounded-full border-t-2 border-pink-400 animate-spin animate-delay-500"></div>
+                    </div>
+                  </div>
+                  <p className="text-blue-200 text-center">Analyzing your vibe...</p>
+                  <div className="text-blue-300/70 text-xs text-center max-w-xs">
+                    Google Gemini is interpreting your answers to create a personalized vibe analysis
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-6">
-                  <p className="text-red-300">Failed to generate vibe analysis. Please try again later.</p>
-                </div>
+                <>
+                  <div className="bg-gray-800/50 border border-blue-500/20 rounded-lg p-4 sm:p-6">
+                    <h3 className="text-xl font-semibold text-blue-300 mb-3">Your Vibe</h3>
+                    <p className="text-white/90 whitespace-pre-line">{vibeAnalysis?.vibeAnalysis}</p>
+                  </div>
+                  
+                  {vibeAnalysis?.vibeCategories && (
+                    <div>
+                      <h3 className="text-lg font-medium text-blue-300 mb-3">Vibe Categories</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {Object.entries(vibeAnalysis.vibeCategories).map(([category, value]) => (
+                          <div 
+                            key={category}
+                            className="bg-gray-800/40 border border-blue-500/10 rounded-md px-3 py-2 flex justify-between items-center"
+                          >
+                            <span className="text-gray-300 capitalize">{category}</span>
+                            <span className="text-blue-300 font-medium">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
               
               <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-800">
