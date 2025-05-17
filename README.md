@@ -1,36 +1,90 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🧠 Vibe Check
 
-## Getting Started
+An AI-powered quiz platform that lets you create quizzes instantly, discover personality insights, and share with friends.
 
-First, run the development server:
+**Live Demo:** [https://vibe-check-one.vercel.app/](https://vibe-check-one.vercel.app/)
+
+![Vibe Check Banner](https://vibe-check-one.vercel.app/banner.png)
+
+## ✨ Features
+
+- **🪄 AI Quiz Generation**: Create complete quizzes on any topic in seconds using Google Gemini Flash 2.0
+- **🧠 Personality Analysis**: Get AI-powered insights about your personality based on quiz answers
+- **🔒 Secure Authentication**: Enterprise-grade authentication with Clerk
+- **🚀 Modern UI**: Responsive and animated interface built with Radix UI and Tailwind CSS
+- **📊 Quiz Dashboard**: Manage your quizzes with statistics and attempt history
+- **🔍 Detailed Results**: View color-coded answers and expandable details for each attempt
+- **📱 Mobile Friendly**: Fully functional on all devices with adaptive layouts
+
+## 🛠️ Tech Stack
+
+- **Frontend**: Next.js 15 (App Router)
+- **UI Components**: Radix UI + Tailwind CSS
+- **Authentication**: Clerk
+- **Database**: Supabase with PostgreSQL and Row-Level Security
+- **AI Integration**: Google Gemini Flash 2.0
+- **Animations**: Framer Motion
+- **Form Handling**: React Hook Form + Zod validation
+- **Deployment**: Vercel
+
+## 📋 Quiz Types
+
+1. **Scored Quiz**: Traditional quiz format with correct and incorrect answers
+2. **Vibe Check**: Opinion-based quiz that analyzes your answers to determine your personality traits
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+ and npm/yarn
+- Supabase account
+- Clerk account 
+- Google Gemini API key
+
+### Setup
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/vibe-check.git
+
+# Navigate to the project directory
+cd vibe-check
+
+# Install dependencies
+npm install
+
+# Set up environment variables (see env-template.txt)
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📝 Database Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The app includes a database migration tool accessible from the dashboard to set up required tables:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- quizzes
+- questions
+- options
+- quiz_submissions
+- vibe_results
 
-## Learn More
+## 📸 Screenshots
 
-To learn more about Next.js, take a look at the following resources:
+- **Dashboard View**: [Screenshot]
+- **Quiz Creator**: [Screenshot]
+- **Results Analysis**: [Screenshot]
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🧑‍💻 Author
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Ajay Pratap Singh Kulharia**
 
-## Deploy on Vercel
+- GitHub: [github.com/ajaykulharia](https://github.com/ajaykulharia)
+- LinkedIn: [linkedin.com/in/ajaykulharia](https://linkedin.com/in/ajaykulharia)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📄 License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+
+Made with ❤️ and AI
