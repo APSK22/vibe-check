@@ -4,7 +4,9 @@ An AI-powered quiz platform that lets you create quizzes instantly, discover per
 
 **Live Demo:** [https://vibe-check-one.vercel.app/](https://vibe-check-one.vercel.app/)
 
-![Vibe Check Banner](https://vibe-check-one.vercel.app/banner.png)
+
+<img width="1439" alt="Image" src="https://github.com/user-attachments/assets/f06603c8-d0d4-4cca-9684-5e54fac5e0db" />
+
 
 ## ✨ Features
 
