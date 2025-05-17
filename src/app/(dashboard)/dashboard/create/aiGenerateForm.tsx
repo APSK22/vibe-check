@@ -18,6 +18,7 @@ export default function AiGenerateForm() {
     numQuestions: "10",
     difficulty: "medium",
     visibility: "private",
+    quizType: "scored",
   });
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -47,7 +48,8 @@ export default function AiGenerateForm() {
           numQuestions: formData.numQuestions,
           difficulty: formData.difficulty,
           visibility: formData.visibility,
-          title: `${formData.topic} Quiz`,
+          quizType: formData.quizType,
+          title: `${formData.topic} ${formData.quizType === 'vibe' ? 'Vibe Check' : 'Quiz'}`,
         }),
       });
       
@@ -104,6 +106,21 @@ export default function AiGenerateForm() {
                 required
               />
             </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="quizType" className="text-white">Quiz Type</Label>
+              <select 
+                id="quizType" 
+                name="quizType"
+                value={formData.quizType}
+                onChange={handleInputChange}
+                className="w-full bg-gray-800 border border-blue-500/30 text-white rounded-md px-3 py-2 focus:border-blue-500/50 focus-visible:outline-none focus-visible:ring-blue-500/20 focus-visible:ring-[3px]"
+              >
+                <option value="scored">Scored Quiz - Has right/wrong answers</option>
+                <option value="vibe">Vibe Check - No right/wrong answers, analyzes personality</option>
+              </select>
+            </div>
+            
             <div className="space-y-2">
               <Label htmlFor="numQuestions" className="text-white">Number of Questions</Label>
               <select 
@@ -170,7 +187,7 @@ export default function AiGenerateForm() {
                   Generating...
                 </>
               ) : (
-                "Generate Quiz"
+                formData.quizType === "vibe" ? "Generate Vibe Check" : "Generate Quiz"
               )}
             </Button>
           </CardFooter>

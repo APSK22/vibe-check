@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
     }
     
     // Get request data
-    const { topic, numQuestions, difficulty, visibility, title } = await req.json();
-    console.log('[Quiz API] Request data:', { topic, numQuestions, difficulty, visibility, title });
+    const { topic, numQuestions, difficulty, visibility, title, quizType = "scored" } = await req.json();
+    console.log('[Quiz API] Request data:', { topic, numQuestions, difficulty, visibility, title, quizType });
     
     // Validate inputs
     if (!topic || !numQuestions || !difficulty || !visibility) {
@@ -46,11 +46,13 @@ export async function POST(req: NextRequest) {
       const quizData = await generateQuiz(
         topic,
         Number(numQuestions),
-        difficulty as "easy" | "medium" | "hard"
+        difficulty as "easy" | "medium" | "hard",
+        quizType as "scored" | "vibe"
       );
       
       console.log('[Quiz API] Quiz generated successfully with', quizData.questions.length, 'questions');
       console.log('[Quiz API] First question sample:', quizData.questions[0]?.question);
+      console.log('[Quiz API] Quiz type:', quizData.quizType);
       
       // Create a supabase client
       console.log('[Quiz API] Creating Supabase client');
@@ -61,10 +63,11 @@ export async function POST(req: NextRequest) {
       const { data: quiz, error: quizError } = await supabase
         .from("quizzes")
         .insert({
-          title: title || `${topic} Quiz`,
-          description: `A ${difficulty} difficulty quiz about ${topic}`,
+          title: title || quizData.title,
+          description: `A ${difficulty} difficulty ${quizData.quizType === "vibe" ? "vibe check" : ""} quiz about ${topic}`,
           is_public: visibility === "public",
           created_by: userId,
+          quiz_type: quizData.quizType
         })
         .select()
         .single();
@@ -124,19 +127,37 @@ export async function POST(req: NextRequest) {
             const option = questionData.options[optIndex];
             
             try {
-              const { error: optionError } = await supabase
+              // Insert option
+              const { data: insertedOption, error: optionError } = await supabase
                 .from("options")
                 .insert({
                   question_id: question.id,
                   option_text: option.text,
-                  is_correct: option.isCorrect,
+                  is_correct: quizData.quizType === "scored" ? option.isCorrect : null,
                   order_num: optIndex + 1,
-                });
+                })
+                .select()
+                .single();
               
               if (optionError) {
                 console.error('[Quiz API] Error creating option:', optionError);
               } else {
                 insertedOptions++;
+                
+                // For vibe check quizzes, store the option interpretations
+                if (quizData.quizType === "vibe" && option.vibeCategory && option.vibeValue) {
+                  const { error: interpError } = await supabase
+                    .from("option_interpretations")
+                    .insert({
+                      option_id: insertedOption.id,
+                      vibe_category: option.vibeCategory,
+                      vibe_value: option.vibeValue
+                    });
+                    
+                  if (interpError) {
+                    console.error('[Quiz API] Error creating option interpretation:', interpError);
+                  }
+                }
               }
             } catch (optError) {
               console.error('[Quiz API] Exception inserting option:', optError);
@@ -170,6 +191,7 @@ export async function POST(req: NextRequest) {
         success: true,
         quizId: quiz.id,
         questionsInserted: insertedQuestions,
+        quizType: quizData.quizType,
         message: "Quiz generated successfully",
       });
     } catch (innerError) {

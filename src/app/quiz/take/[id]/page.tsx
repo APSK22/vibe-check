@@ -5,8 +5,8 @@ import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useSupabase } from "@/lib/supabase";
-import { useUser } from "@clerk/nextjs";
-import { ArrowLeft, ArrowRight, Check, Clock, Award, AlertCircle } from "lucide-react";
+import { useUser, useClerk } from "@clerk/nextjs";
+import { ArrowLeft, ArrowRight, Check, Clock, Award, AlertCircle, Sparkles, UserIcon } from "lucide-react";
 import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
@@ -30,14 +30,21 @@ interface Quiz {
   description: string;
   created_at: string;
   created_by: string;
+  quiz_type: "scored" | "vibe";
   questions: Question[];
+}
+
+interface VibeAnalysis {
+  vibeAnalysis: string;
+  vibeCategories?: Record<string, string>;
 }
 
 export default function TakeQuizPage() {
   const params = useParams();
   const quizId = params.id as string;
   const supabase = useSupabase();
-  const { user } = useUser();
+  const { user, isLoaded, isSignedIn } = useUser();
+  const { openSignIn } = useClerk();
   
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,6 +57,16 @@ export default function TakeQuizPage() {
   const [timeSpent, setTimeSpent] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [vibeAnalysis, setVibeAnalysis] = useState<VibeAnalysis | null>(null);
+  const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+  
+  // Check if user is authenticated
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      // Store the current URL to redirect back after login
+      sessionStorage.setItem('redirectAfterSignIn', `/quiz/take/${quizId}`);
+    }
+  }, [isLoaded, isSignedIn, quizId]);
   
   // Load quiz data
   useEffect(() => {
@@ -124,8 +141,12 @@ export default function TakeQuizPage() {
       }
     }
     
-    loadQuizData();
-  }, [quizId, supabase]);
+    if (isSignedIn) {
+      loadQuizData();
+    } else {
+      setIsLoading(false);
+    }
+  }, [quizId, supabase, isSignedIn]);
   
   // Timer for tracking time spent
   useEffect(() => {
@@ -148,6 +169,38 @@ export default function TakeQuizPage() {
     setSelectedOption(previouslySelectedOption || null);
   }, [currentQuestionIndex, quiz, userAnswers]);
   
+  // If not signed in, show sign-in prompt
+  if (isLoaded && !isSignedIn) {
+    return (
+      <div className="max-w-md mx-auto my-8 p-6">
+        <Card className="bg-gray-900 border-blue-500/30">
+          <CardHeader className="text-center">
+            <CardTitle className="text-xl text-white">Sign in to Take the Quiz</CardTitle>
+            <CardDescription className="text-blue-300">
+              You need to be signed in to take quizzes
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center space-y-4">
+            <UserIcon className="h-12 w-12 text-blue-400 mb-2" />
+            <p className="text-gray-300 text-center mb-4">
+              Sign in to track your progress, save your scores, and see your results.
+            </p>
+            <Button 
+              className="w-full bg-blue-600 hover:bg-blue-700"
+              onClick={() => {
+                openSignIn({
+                  redirectUrl: `/quiz/take/${quizId}`
+                });
+              }}
+            >
+              Sign In to Continue
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const handleOptionSelect = (optionId: string) => {
     if (quizCompleted) return;
     
@@ -181,6 +234,11 @@ export default function TakeQuizPage() {
   const calculateScore = () => {
     if (!quiz) return { correct: 0, total: 0 };
     
+    // If it's a vibe quiz, don't calculate a score
+    if (quiz.quiz_type === "vibe") {
+      return { correct: 0, total: quiz.questions.length };
+    }
+    
     let correctAnswers = 0;
     const totalQuestions = quiz.questions.length;
     
@@ -194,6 +252,43 @@ export default function TakeQuizPage() {
     });
     
     return { correct: correctAnswers, total: totalQuestions };
+  };
+  
+  const fetchVibeAnalysis = async (submissionId: string) => {
+    setLoadingAnalysis(true);
+    
+    try {
+      const response = await fetch("/api/quiz/analyze-vibe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          submissionId,
+          quizId
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to analyze vibe");
+      }
+      
+      const data = await response.json();
+      setVibeAnalysis(data.vibeAnalysis);
+      
+      // Trigger a celebratory confetti effect for vibe results
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+      
+    } catch (error) {
+      console.error("Error fetching vibe analysis:", error);
+      toast.error("Failed to generate vibe analysis");
+    } finally {
+      setLoadingAnalysis(false);
+    }
   };
   
   const handleSubmitQuiz = async () => {
@@ -245,17 +340,21 @@ export default function TakeQuizPage() {
         });
       }
       
-      setQuizCompleted(true);
-      
-      // Trigger confetti effect if score is good
-      if (finalScore.correct / finalScore.total >= 0.7) {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
+      // For vibe quizzes, get the vibe analysis
+      if (quiz.quiz_type === "vibe") {
+        await fetchVibeAnalysis(submission.id);
+      } else {
+        // Trigger confetti effect if score is good on scored quizzes
+        if (finalScore.correct / finalScore.total >= 0.7) {
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        }
       }
       
+      setQuizCompleted(true);
     } catch (error) {
       console.error('Error submitting quiz:', error);
       toast.error('Failed to submit quiz');
@@ -294,30 +393,105 @@ export default function TakeQuizPage() {
   
   // If the quiz is completed, show the results
   if (quizCompleted) {
+    // Handle vibe check quiz results differently
+    if (quiz.quiz_type === "vibe") {
+      return (
+        <div className="max-w-3xl mx-auto px-4 py-6 sm:p-6">
+          <Card className="bg-gray-900 border-blue-500/30 overflow-hidden shadow-lg">
+            <div className="h-2 bg-gradient-to-r from-purple-400 via-pink-500 to-yellow-500"></div>
+            <CardHeader className="text-center">
+              <CardTitle className="text-xl md:text-2xl lg:text-3xl text-white">Your Vibe Analysis</CardTitle>
+              <CardDescription className="text-blue-200">
+                Based on your responses to &ldquo;{quiz.title}&rdquo;
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent className="space-y-6">
+              {loadingAnalysis ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mb-4"></div>
+                  <p className="text-purple-300">Analyzing your vibe...</p>
+                </div>
+              ) : vibeAnalysis ? (
+                <div className="text-center py-4">
+                  <div className="inline-flex mb-4">
+                    <Sparkles className="h-12 w-12 text-purple-500" />
+                  </div>
+                  
+                  <div className="mt-4 space-y-4">
+                    <h3 className="text-lg md:text-xl font-semibold text-white">
+                      Your Vibe
+                    </h3>
+                    <div className="bg-gray-800 rounded-lg p-4 sm:p-6 text-left">
+                      <p className="text-blue-200 whitespace-pre-wrap text-sm sm:text-base">{vibeAnalysis.vibeAnalysis}</p>
+                    </div>
+                    
+                    {vibeAnalysis.vibeCategories && Object.keys(vibeAnalysis.vibeCategories).length > 0 && (
+                      <div className="mt-4 sm:mt-6">
+                        <h4 className="text-base md:text-lg font-medium text-white mb-3">Your Vibe Categories</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                          {Object.entries(vibeAnalysis.vibeCategories).slice(0, 6).map(([category, value]) => (
+                            <div key={category} className="bg-gray-800/50 border border-gray-700 rounded-md p-2 sm:p-3 flex justify-between">
+                              <span className="text-gray-300 capitalize text-sm sm:text-base">{category}</span>
+                              <span className="text-purple-300 font-medium text-sm sm:text-base">{value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-gray-400 mt-2 text-sm">Time: {formatTime(timeSpent)}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-red-300">Failed to generate vibe analysis. Please try again later.</p>
+                </div>
+              )}
+              
+              <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-800">
+                <Link href={`/quiz/${quizId}`} className="flex-1">
+                  <Button variant="outline" className="w-full">
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Quiz Details
+                  </Button>
+                </Link>
+                <Link href="/dashboard" className="flex-1">
+                  <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                    Back to Dashboard
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    
+    // Original scored quiz results display
     const percentage = Math.round((score.correct / score.total) * 100);
     
     return (
-      <div className="max-w-3xl mx-auto p-4">
-        <Card className="bg-gray-900 border-blue-500/30 overflow-hidden">
+      <div className="max-w-3xl mx-auto px-4 py-6 sm:p-6">
+        <Card className="bg-gray-900 border-blue-500/30 overflow-hidden shadow-lg">
           <div className="h-2 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500"></div>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl md:text-3xl text-white">Quiz Results</CardTitle>
+            <CardTitle className="text-xl md:text-2xl lg:text-3xl text-white">Quiz Results</CardTitle>
             <CardDescription className="text-blue-200">
               You have completed &ldquo;{quiz.title}&rdquo;
             </CardDescription>
           </CardHeader>
           
-          <CardContent className="space-y-8">
-            <div className="text-center py-6">
+          <CardContent className="space-y-6">
+            <div className="text-center py-4 sm:py-6">
               <div className="relative inline-flex">
-                <Award className="h-24 w-24 text-yellow-500" />
+                <Award className="h-16 w-16 sm:h-24 sm:w-24 text-yellow-500" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-2xl font-bold text-white">{percentage}%</div>
+                  <div className="text-xl sm:text-2xl font-bold text-white">{percentage}%</div>
                 </div>
               </div>
               
               <div className="mt-4 space-y-1">
-                <h3 className="text-xl font-semibold text-white">
+                <h3 className="text-lg sm:text-xl font-semibold text-white">
                   {
                     percentage >= 80 ? "Excellent!" :
                     percentage >= 60 ? "Good job!" :
@@ -326,12 +500,12 @@ export default function TakeQuizPage() {
                   }
                 </h3>
                 <p className="text-blue-200">You scored {score.correct} out of {score.total}</p>
-                <p className="text-gray-400">Time: {formatTime(timeSpent)}</p>
+                <p className="text-gray-400 text-sm">Time: {formatTime(timeSpent)}</p>
               </div>
             </div>
             
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium text-white border-b border-gray-800 pb-2">Question Review</h3>
+            <div className="space-y-4 sm:space-y-6">
+              <h3 className="text-base sm:text-lg font-medium text-white border-b border-gray-800 pb-2">Question Review</h3>
               
               {quiz.questions.map((question, index) => {
                 const userSelectedOptionId = userAnswers[question.id];
@@ -341,15 +515,15 @@ export default function TakeQuizPage() {
                 
                 return (
                   <div key={question.id} className="space-y-2">
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-2 sm:gap-3">
                       <div className={`flex-shrink-0 rounded-full p-1 ${isCorrect ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                        {isCorrect ? <Check className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
+                        {isCorrect ? <Check className="h-4 w-4 sm:h-5 sm:w-5" /> : <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5" />}
                       </div>
                       <div className="flex-1">
-                        <p className="font-medium text-white">
+                        <p className="font-medium text-white text-sm sm:text-base">
                           {index + 1}. {question.question}
                         </p>
-                        <div className="mt-2 space-y-1 text-sm">
+                        <div className="mt-1 sm:mt-2 space-y-0.5 sm:space-y-1 text-xs sm:text-sm">
                           <p className="text-gray-400">
                             Your answer: <span className={isCorrect ? "text-green-400" : "text-red-400"}>
                               {userSelectedOption?.option_text || "Not answered"}
