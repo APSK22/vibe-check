@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0c0c0c"/>
+  <g transform="translate(300, 315) scale(9)">
+    <path d="M16 32c4 0 6-8 8-8s4 8 6 8 4-8 6-8 4 8 6 8 4-8 6-8" 
+          stroke="url(#pulse)" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <defs>
+      <linearGradient id="pulse" x1="16" y1="32" x2="48" y2="32" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#00ffc3"/>
+        <stop offset="1" stop-color="#a855f7"/>
+      </linearGradient>
+    </defs>
+  </g>
+  <text x="600" y="500" font-family="Arial, sans-serif" font-size="60" fill="white" text-anchor="middle">Vibe Check</text>
+  <text x="600" y="570" font-family="Arial, sans-serif" font-size="30" fill="#888" text-anchor="middle">Create and Share Interactive Quizzes</text>
+</svg> 

@@ -65,30 +65,30 @@ export async function generateQuiz(
     if (quizType === "scored") {
       // Traditional quiz with correct answers
       prompt = `
-        Create a multiple choice quiz about ${topic} with exactly ${numQuestions} questions.
-        Difficulty level: ${difficulty}.
-        
-        Each question must have EXACTLY 4 options, with only ONE correct answer.
-        
-        Format your response as VALID JSON following this structure exactly:
-        {
-          "title": "${topic} Quiz",
-          "questions": [
-            {
-              "question": "What is the capital of France?",
-              "options": [
-                {"text": "Berlin", "isCorrect": false},
-                {"text": "Madrid", "isCorrect": false},
-                {"text": "Paris", "isCorrect": true},
-                {"text": "Rome", "isCorrect": false}
-              ]
-            }
+      Create a multiple choice quiz about ${topic} with exactly ${numQuestions} questions.
+      Difficulty level: ${difficulty}.
+      
+      Each question must have EXACTLY 4 options, with only ONE correct answer.
+      
+      Format your response as VALID JSON following this structure exactly:
+      {
+        "title": "${topic} Quiz",
+        "questions": [
+          {
+            "question": "What is the capital of France?",
+            "options": [
+              {"text": "Berlin", "isCorrect": false},
+              {"text": "Madrid", "isCorrect": false},
+              {"text": "Paris", "isCorrect": true},
+              {"text": "Rome", "isCorrect": false}
+            ]
+          }
           ],
           "quizType": "scored"
-        }
-        
-        DO NOT include any text before or after the JSON. Return ONLY the JSON.
-      `;
+      }
+      
+      DO NOT include any text before or after the JSON. Return ONLY the JSON.
+    `;
     } else {
       // Vibe check quiz without correct answers
       prompt = `
@@ -208,13 +208,13 @@ function validateAndFixQuizData(quizData: QuizData, topic: string, quizType: "sc
     
     // Handle quiz-type-specific validation
     if (quizType === "scored") {
-      // Check for correct answers
-      const correctOptions = q.options.filter(opt => opt.isCorrect);
-      if (correctOptions.length !== 1) {
-        // Fix: Mark the first option as correct if none or multiple are marked
-        q.options.forEach((opt, index) => {
-          opt.isCorrect = index === 0;
-        });
+    // Check for correct answers
+    const correctOptions = q.options.filter(opt => opt.isCorrect);
+    if (correctOptions.length !== 1) {
+      // Fix: Mark the first option as correct if none or multiple are marked
+      q.options.forEach((opt, index) => {
+        opt.isCorrect = index === 0;
+      });
       }
     } else {
       // For vibe quizzes, ensure vibeCategory and vibeValue exist

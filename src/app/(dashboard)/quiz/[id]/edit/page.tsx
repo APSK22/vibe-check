@@ -10,9 +10,10 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSupabase } from "@/lib/supabase";
 import { useUser } from "@clerk/nextjs";
-import { Trash2, PlusCircle, Save, ArrowLeft, Copy, Facebook, Mail, MessageSquare } from "lucide-react";
+import { Trash2, PlusCircle, Save, ArrowLeft, Copy, Facebook, Mail } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 
 interface Question {
   id?: string;
@@ -49,7 +50,7 @@ export default function EditQuizPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
+  
   const [error, setError] = useState<string | null>(null);
   const [activeQuestion, setActiveQuestion] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("questions");
@@ -219,37 +220,7 @@ export default function EditQuizPage() {
     }
   };
 
-  const generateJoinCode = async () => {
-    if (!quiz) return;
-    
-    setIsGeneratingCode(true);
-    
-    try {
-      // Generate a random 6-character alphanumeric code
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-      
-      const { error } = await supabase
-        .from('quizzes')
-        .update({ join_code: code })
-        .eq('id', quizId);
-        
-      if (error) {
-        throw error;
-      }
-      
-      setQuiz({
-        ...quiz,
-        join_code: code
-      });
-      
-      toast.success('Join code generated successfully');
-    } catch (error) {
-      console.error('Error generating join code:', error);
-      toast.error('Failed to generate join code');
-    } finally {
-      setIsGeneratingCode(false);
-    }
-  };
+  
 
   const copyToClipboard = (text: string, message: string) => {
     navigator.clipboard.writeText(text)
@@ -589,42 +560,7 @@ export default function EditQuizPage() {
                   />
                 </div>
                 
-                <div className="border-t border-gray-700 pt-6">
-                  <h4 className="font-medium text-white leading-none mb-3">Quiz Join Code</h4>
-                  <p className="text-sm text-gray-400 mb-4">
-                    Generate a code that others can use to join your quiz
-                  </p>
-                  
-                  {quiz.join_code ? (
-                    <div className="flex gap-2 items-center">
-                      <div className="bg-gray-800 p-3 rounded-md font-mono text-xl tracking-widest text-center text-blue-300 flex-1">
-                        {quiz.join_code}
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={() => copyToClipboard(quiz.join_code!, 'Join code copied!')}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      onClick={generateJoinCode}
-                      disabled={isGeneratingCode}
-                      className="bg-blue-600 hover:bg-blue-700 w-full"
-                    >
-                      {isGeneratingCode ? (
-                        <>
-                          <div className="animate-spin mr-2 h-4 w-4 border-2 border-b-transparent rounded-full"></div>
-                          Generating...
-                        </>
-                      ) : (
-                        'Generate Join Code'
-                      )}
-                    </Button>
-                  )}
-                </div>
+                
               </CardContent>
             </Card>
             
@@ -662,7 +598,7 @@ export default function EditQuizPage() {
                         onClick={shareViaWhatsApp}
                         className="bg-green-600 hover:bg-green-700 flex-1"
                       >
-                        <MessageSquare className="h-4 w-4 mr-2" />
+                        <WhatsAppIcon className="h-4 w-4 mr-2" />
                         WhatsApp
                       </Button>
                       

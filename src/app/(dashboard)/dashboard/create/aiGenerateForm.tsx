@@ -158,7 +158,7 @@ export default function AiGenerateForm() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Wand2 className="h-5 w-5 text-blue-400" />
-              <CardTitle className="text-xl">Generate Quiz with AI</CardTitle>
+            <CardTitle className="text-xl">Generate Quiz with AI</CardTitle>
             </div>
             <CardDescription>
               Let Google Gemini create a quiz for you on any topic

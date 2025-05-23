@@ -62,9 +62,9 @@ export default function DashboardPage() {
           const quizzesWithQuestionCounts = await Promise.all(
             quizData.map(async (quiz) => {
               const { count } = await supabase
-                .from('questions')
+              .from('questions')
                 .select('id', { count: 'exact', head: true })
-                .eq('quiz_id', quiz.id);
+              .eq('quiz_id', quiz.id);
               
               return {
                 ...quiz,
@@ -121,8 +121,8 @@ export default function DashboardPage() {
           attemptQuizData.forEach(quiz => {
             quizMap.set(quiz.id, quiz);
           });
-        }
-        
+            }
+            
         // Fetch vibe results for vibe-type quizzes
         const submissionIds = submissionsData.map(sub => sub.id);
         const { data: vibeData, error: vibeError } = await supabase
@@ -162,9 +162,9 @@ export default function DashboardPage() {
             quiz_description: quiz.description,
             quiz_type: quiz.quiz_type || "scored",
             vibe_analysis: vibe?.vibe_analysis
-          };
+            };
         });
-        
+          
         console.log("Recent attempts:", combinedAttempts);
         setRecentAttempts(combinedAttempts);
       } catch (error) {
@@ -260,7 +260,7 @@ export default function DashboardPage() {
                 <motion.div key={quiz.id} variants={item}>
                   <Link href={`/quiz/${quiz.id}`} className="block h-full">
                     <Card className={`h-full bg-gray-900 hover:border-blue-500 transition-all cursor-pointer overflow-hidden ${quiz.quiz_type === 'vibe' ? 'border-purple-500/30' : 'border-blue-500/30'}`}>
-                      <CardHeader>
+                    <CardHeader>
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <CardTitle className="flex items-center gap-2 text-white">
@@ -269,7 +269,7 @@ export default function DashboardPage() {
                               )}
                               <span>{quiz.title}</span>
                             </CardTitle>
-                            <CardDescription className="text-blue-200">{quiz.description}</CardDescription>
+                      <CardDescription className="text-blue-200">{quiz.description}</CardDescription>
                           </div>
                           <button
                             onClick={(e) => handleDeleteQuiz(quiz.id, e)}
@@ -279,14 +279,14 @@ export default function DashboardPage() {
                             <Trash2 size={16} />
                           </button>
                         </div>
-                      </CardHeader>
-                      <CardFooter className="flex justify-between border-t border-blue-500/20 pt-4">
-                        <span className="text-sm text-blue-200">{quiz.questionCount} questions</span>
+                    </CardHeader>
+                    <CardFooter className="flex justify-between border-t border-blue-500/20 pt-4">
+                      <span className="text-sm text-blue-200">{quiz.questionCount} questions</span>
                         <Button variant="ghost" className="text-blue-300 hover:text-blue-200 hover:bg-gray-800">
                           View Details
                         </Button>
-                      </CardFooter>
-                    </Card>
+                    </CardFooter>
+                  </Card>
                   </Link>
                 </motion.div>
               ))}
@@ -333,7 +333,7 @@ export default function DashboardPage() {
                         <CardDescription className="line-clamp-2">
                           {attempt.quiz_description}
                         </CardDescription>
-                      </CardHeader>
+                    </CardHeader>
                       <CardFooter className="flex justify-between items-center border-t border-blue-500/20 pt-3">
                         <div className="flex items-center gap-1 text-sm text-blue-200">
                           <Calendar className="h-3 w-3" />
@@ -353,8 +353,8 @@ export default function DashboardPage() {
                             Vibe Check
                           </div>
                         )}
-                      </CardFooter>
-                    </Card>
+                    </CardFooter>
+                  </Card>
                   </Link>
                 </motion.div>
               ))}

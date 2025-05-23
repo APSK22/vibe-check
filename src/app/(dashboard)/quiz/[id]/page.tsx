@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { useSupabase } from "@/lib/supabase";
 import { useUser } from "@clerk/nextjs";
-import { Pencil, Trash2, Share2, Play, Plus, Copy, Facebook, Mail, MessageSquare } from "lucide-react";
+import { Pencil, Trash2, Share2, Play, Plus, Copy, Facebook, Mail } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 
 interface Question {
   id: string;
@@ -245,7 +246,7 @@ export default function QuizDetailsPage() {
                         className="bg-green-600 hover:bg-green-700 flex-1"
                         onClick={shareViaWhatsApp}
                       >
-                        <MessageSquare className="h-4 w-4" />
+                        <WhatsAppIcon className="h-4 w-4" />
                       </Button>
                       <Button 
                         size="sm"
