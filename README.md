@@ -54,7 +54,7 @@ cd vibe-check
 # Install dependencies
 npm install
 
-# Set up environment variables (see env-template.txt)
+# Set up environment variables 
 
 # Run development server
 npm run dev
