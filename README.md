@@ -94,5 +94,3 @@ The app includes a database migration tool accessible from the dashboard to set 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 ---
-
-Made with ❤️ and AI
