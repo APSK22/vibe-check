@@ -91,6 +91,6 @@ The app includes a database migration tool accessible from the dashboard to set 
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the APACHE 2.0 License - see the LICENSE file for details.
 
 ---
