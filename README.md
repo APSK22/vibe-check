@@ -72,16 +72,22 @@ The app includes a database migration tool accessible from the dashboard to set 
 
 ## 📸 Screenshots
 
-- **Dashboard View**: [Screenshot]
-- **Quiz Creator**: [Screenshot]
-- **Results Analysis**: [Screenshot]
+- **Dashboard View**: <img width="1440" alt="image" src="https://github.com/user-attachments/assets/67ec96dd-6847-4c6e-8783-b9c8bc892fea" />
+
+- **Quiz Creator**: <img width="1440" alt="image" src="https://github.com/user-attachments/assets/cdea7173-b355-4d94-882e-dd1ba5e030e7" />
+
+- **Quiz Taking**:<img width="1440" alt="image" src="https://github.com/user-attachments/assets/f2a76705-df35-465e-b6a4-6a0536790af7" />
+
+
+- **Results Analysis**: <img width="1433" alt="image" src="https://github.com/user-attachments/assets/d2a2b2aa-6820-4111-9a6c-b5c78ae13ce6" />
+
 
 ## 🧑‍💻 Author
 
 **Ajay Pratap Singh Kulharia**
 
-- GitHub: [github.com/ajaykulharia](https://github.com/ajaykulharia)
-- LinkedIn: [linkedin.com/in/ajaykulharia](https://linkedin.com/in/ajaykulharia)
+- GitHub: [github.com/APSK22](https://github.com/APSK22)
+- LinkedIn: [Ajay Pratap Singh Kulharia](https://www.linkedin.com/in/ajay-pratap-singh-kulharia-82b2192aa/)
 
 ## 📄 License
 
