@@ -103,7 +103,7 @@ export default function RootLayout({
         baseTheme: dark,
       }}
     >
-      <html lang="en">
+      <html lang="en" className="dark h-full bg-black">
         <head>
           <link id="favicon" rel="icon" type="image/svg+xml" href="/vibecheck-favicon.svg" />
           <meta name="theme-color" content="#0c0c0c" />
@@ -111,7 +111,7 @@ export default function RootLayout({
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
           <meta name="google-site-verification" content="FE1kfRFlJTV-wgIpJfq0foiW12zeaXDbYr9SXUwvgWY" />
         </head>
-        <body className={inter.className}>
+        <body className={`${inter.className} h-full bg-black`}>
           <main className="min-h-screen bg-black text-white">
             {children}
           </main>
