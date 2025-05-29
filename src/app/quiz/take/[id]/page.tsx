@@ -41,7 +41,7 @@ interface VibeAnalysis {
 
 export default function TakeQuizPage() {
   const params = useParams();
-  const quizId = params.id as string;
+  const quizId = params?.id as string;
   const supabase = useSupabase();
   const { user, isLoaded, isSignedIn } = useUser();
   const { openSignIn } = useClerk();

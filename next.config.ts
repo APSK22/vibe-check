@@ -13,9 +13,11 @@ const nextConfig = {
   },
   // Add SWC compiler configuration to remove console logs in production
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production' ? {
-      exclude: ['error', 'warn'],
-    } : false,
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  // Fix font preloading issues
+  experimental: {
+    optimizeFonts: true,
   },
 };
 
