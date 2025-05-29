@@ -138,3 +138,46 @@
 .animate-delay-500 {
   animation-delay: 0.5s;
 }
+
+/* Custom responsive classes for extra small screens */
+@media (min-width: 480px) {
+  .xs\:flex-row {
+    flex-direction: row;
+  }
+  .xs\:flex-auto {
+    flex: 1 1 auto;
+  }
+  .xs\:w-auto {
+    width: auto;
+  }
+  .xs\:inline {
+    display: inline;
+  }
+  .xs\:hidden {
+    display: none;
+  }
+  .xs\:justify-between {
+    justify-content: space-between;
+  }
+  .xs\:items-center {
+    align-items: center;
+  }
+  .xs\:text-base {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+}
+
+/* Additional responsive improvements for mobile */
+@media (max-width: 479px) {
+  .mobile-overflow-fix {
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+  }
+  
+  .card-responsive-padding {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}

@@ -17,6 +17,7 @@ interface Quiz {
   title: string;
   description: string;
   questionCount: number;
+  submissionCount?: number;
   quiz_type?: "scored" | "vibe";
   created_at: string;
 }
@@ -45,35 +46,24 @@ export default function DashboardPage() {
       if (!user) return;
       
       try {
-        // Fetch user's created quizzes
-        const { data: quizData, error: quizError } = await supabase
-          .from('quizzes')
-          .select('id, title, description, created_at, quiz_type')
-          .eq('created_by', user.id)
-          .order('created_at', { ascending: false });
+        setIsLoading(true);
         
-        if (quizError) {
-          console.error('Error fetching quizzes:', quizError);
+        // Fetch user's created quizzes using our new API endpoint
+        console.log('[Dashboard] Fetching user quizzes from API');
+        const quizResponse = await fetch('/api/quiz/user-quizzes');
+        
+        if (!quizResponse.ok) {
+          const errorData = await quizResponse.json();
+          console.error('[Dashboard] Error fetching quizzes:', errorData);
+          toast.error('Failed to load your quizzes');
           return;
         }
         
-        // Get question count for each quiz
-        if (quizData && quizData.length > 0) {
-          const quizzesWithQuestionCounts = await Promise.all(
-            quizData.map(async (quiz) => {
-              const { count } = await supabase
-              .from('questions')
-                .select('id', { count: 'exact', head: true })
-              .eq('quiz_id', quiz.id);
-              
-              return {
-                ...quiz,
-                questionCount: count || 0
-              };
-            })
-          );
-          
-          setMyQuizzes(quizzesWithQuestionCounts);
+        const quizData = await quizResponse.json();
+        console.log('[Dashboard] Quizzes loaded:', quizData.quizzes?.length || 0);
+        
+        if (quizData.success && Array.isArray(quizData.quizzes)) {
+          setMyQuizzes(quizData.quizzes);
         } else {
           setMyQuizzes([]);
         }
@@ -169,6 +159,7 @@ export default function DashboardPage() {
         setRecentAttempts(combinedAttempts);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
+        toast.error('Failed to load dashboard data');
       } finally {
         setIsLoading(false);
       }
@@ -186,14 +177,20 @@ export default function DashboardPage() {
     }
     
     try {
-      const { error } = await supabase
-        .from("quizzes")
-        .delete()
-        .eq("id", id);
+      // Use our API endpoint to delete the quiz
+      const response = await fetch("/api/quiz/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ quizId: id }),
+      });
+      
+      const data = await response.json();
         
-      if (error) {
-        console.error("Error deleting quiz:", error);
-        toast.error("Failed to delete quiz");
+      if (!response.ok) {
+        console.error("[Dashboard] Error deleting quiz:", data);
+        toast.error(data.error || "Failed to delete quiz");
         return;
       }
       
@@ -230,22 +227,22 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-        <div className="flex gap-2">
-          <Link href="/dashboard/create">
-            <Button className="bg-blue-600 hover:bg-blue-700">Create Quiz</Button>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">Dashboard</h1>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Link href="/dashboard/create" className="flex-1 sm:flex-auto">
+            <Button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700">Create Quiz</Button>
           </Link>
-          <Link href="/dashboard/join">
-            <Button variant="outline">Join Quiz</Button>
+          <Link href="/dashboard/join" className="flex-1 sm:flex-auto">
+            <Button variant="outline" className="w-full sm:w-auto">Join Quiz</Button>
           </Link>
         </div>
       </div>
       
       <Tabs defaultValue="myQuizzes" className="w-full">
-        <TabsList>
-          <TabsTrigger value="myQuizzes">My Created Quizzes</TabsTrigger>
-          <TabsTrigger value="recent">Recent Activity</TabsTrigger>
+        <TabsList className="w-full">
+          <TabsTrigger value="myQuizzes" className="flex-1">My Created Quizzes</TabsTrigger>
+          <TabsTrigger value="recent" className="flex-1">Recent Activity</TabsTrigger>
         </TabsList>
         
         <TabsContent value="myQuizzes" className="pt-4">
@@ -265,11 +262,11 @@ export default function DashboardPage() {
                           <div className="flex-1">
                             <CardTitle className="flex items-center gap-2 text-white">
                               {quiz.quiz_type === 'vibe' && (
-                                <Sparkles className="h-4 w-4 text-purple-400" />
+                                <Sparkles className="h-4 w-4 flex-shrink-0 text-purple-400" />
                               )}
-                              <span>{quiz.title}</span>
+                              <span className="line-clamp-1 break-words">{quiz.title}</span>
                             </CardTitle>
-                      <CardDescription className="text-blue-200">{quiz.description}</CardDescription>
+                      <CardDescription className="text-blue-200 line-clamp-2 break-words">{quiz.description}</CardDescription>
                           </div>
                           <button
                             onClick={(e) => handleDeleteQuiz(quiz.id, e)}
@@ -280,9 +277,13 @@ export default function DashboardPage() {
                           </button>
                         </div>
                     </CardHeader>
-                    <CardFooter className="flex justify-between border-t border-blue-500/20 pt-4">
-                      <span className="text-sm text-blue-200">{quiz.questionCount} questions</span>
-                        <Button variant="ghost" className="text-blue-300 hover:text-blue-200 hover:bg-gray-800">
+                    <CardFooter className="flex flex-col xs:flex-row justify-between gap-2 border-t border-blue-500/20 pt-4">
+                      <div className="flex gap-3 text-sm text-blue-200 flex-wrap">
+                        <span>{quiz.questionCount} questions</span>
+                        <span className="hidden xs:inline">•</span>
+                        <span>{quiz.submissionCount ?? '–'} attempts</span>
+                      </div>
+                      <Button variant="ghost" className="text-blue-300 hover:text-blue-200 hover:bg-gray-800 w-full xs:w-auto">
                           View Details
                         </Button>
                     </CardFooter>

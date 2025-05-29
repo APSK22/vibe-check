@@ -29,6 +29,7 @@ interface Quiz {
   is_public: boolean;
   join_code?: string;
   questions: Question[];
+  submission_count?: number;
 }
 
 export default function QuizDetailsPage() {
@@ -43,67 +44,56 @@ export default function QuizDetailsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [submissionCountLoading, setSubmissionCountLoading] = useState(true);
   
   useEffect(() => {
     async function loadQuizData() {
-      if (!user || !quizId) return;
+      if (!quizId) return;
       
       try {
-        // Load quiz details
-        const { data: quizData, error: quizError } = await supabase
-          .from('quizzes')
-          .select('*')
-          .eq('id', quizId)
-          .single();
+        setIsLoading(true);
+        setError(null);
         
-        if (quizError) {
-          console.error('Error loading quiz:', quizError);
-          setError('Failed to load quiz');
-          return;
-        }
+        console.log(`[Quiz Details] Loading quiz ${quizId}`);
         
-        // Load questions
-        const { data: questionsData, error: questionsError } = await supabase
-          .from('questions')
-          .select('*')
-          .eq('quiz_id', quizId)
-          .order('order_num');
-        
-        if (questionsError) {
-          console.error('Error loading questions:', questionsError);
-          setError('Failed to load questions');
-          return;
-        }
-        
-        // For each question, load its options
-        const questionsWithOptions = await Promise.all(
-          questionsData.map(async (q) => {
-            const { data: optionsData, error: optionsError } = await supabase
-              .from('options')
-              .select('*')
-              .eq('question_id', q.id)
-              .order('order_num');
-            
-            if (optionsError) {
-              console.error('Error loading options:', optionsError);
-              return {
-                ...q,
-                options: []
-              };
-            }
-            
-            return {
-              ...q,
-              options: optionsData
-            };
-          })
-        );
-        
-        // Combine quiz and questions
-        setQuiz({
-          ...quizData,
-          questions: questionsWithOptions
+        // Use our API endpoint instead of direct Supabase queries
+        const response = await fetch("/api/quiz/fetch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ quizId }),
         });
+        
+        console.log(`[Quiz Details] API response status: ${response.status}`);
+        
+        const data = await response.json();
+        console.log(`[Quiz Details] Response data:`, data);
+        
+        if (!response.ok) {
+          console.error('[Quiz Details] Error fetching quiz:', data);
+          
+          if (response.status === 403) {
+            setError('You do not have permission to access this quiz');
+          } else {
+            setError(data.error || 'Failed to load quiz');
+          }
+          
+          setIsLoading(false);
+          return;
+        }
+        
+        if (!data.success || !data.quiz) {
+          console.error('[Quiz Details] Invalid response format:', data);
+          setError('Invalid response from server');
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log(`[Quiz Details] Quiz loaded successfully with ${data.quiz.questions?.length || 0} questions`);
+        
+        // Set the quiz data
+        setQuiz(data.quiz);
         
       } catch (error) {
         console.error('Error in loadQuizData:', error);
@@ -115,6 +105,50 @@ export default function QuizDetailsPage() {
     
     loadQuizData();
   }, [quizId, supabase, user]);
+  
+  // Fetch submission count with the simplified endpoint
+  useEffect(() => {
+    // Only run this effect when quiz is loaded and has an ID
+    if (typeof quiz?.id !== 'string') return;
+    
+    const quizId = quiz.id;
+    
+    async function fetchSubmissionCount() {
+      if (!quiz?.id) return;
+      
+      setSubmissionCountLoading(true);
+      
+      try {
+        const response = await fetch('/api/quiz/simple-count', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ quizId: quiz.id }),
+        });
+        
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setQuiz(prevQuiz => {
+            if (!prevQuiz) return null;
+            return {
+              ...prevQuiz,
+              submission_count: data.count
+            };
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching submission count:', error);
+      } finally {
+        setSubmissionCountLoading(false);
+      }
+    }
+    
+    fetchSubmissionCount();
+  }, [quiz?.id]);
   
   const handleDeleteQuiz = async () => {
     if (!quiz || !user) return;
@@ -217,19 +251,19 @@ export default function QuizDetailsPage() {
         </div>
       )}
       
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-white">{quiz.title}</h1>
-        <div className="flex gap-2">
-          <Link href={`/quiz/take/${quizId}`}>
-            <Button className="bg-green-600 hover:bg-green-700">
-              <Play className="h-4 w-4 mr-2" />
-              Start Quiz
-            </Button>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold text-white break-words line-clamp-2">{quiz.title}</h1>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Link href={`/quiz/take/${quizId}`} className="flex-1 sm:flex-none">
+            <Button className="w-full sm:w-auto bg-green-600 hover:bg-green-700">
+            <Play className="h-4 w-4 mr-2" />
+            Start Quiz
+          </Button>
           </Link>
-          <div className="relative">
+          <div className="relative flex-1 sm:flex-none">
             <Button
               variant="outline"
-              className="border-blue-500/30 hover:bg-gray-800"
+              className="w-full sm:w-auto border-blue-500/30 hover:bg-gray-800"
               onClick={() => setShowShareMenu(!showShareMenu)}
             >
               <Share2 className="h-4 w-4 mr-2" />
@@ -286,10 +320,10 @@ export default function QuizDetailsPage() {
               </div>
             )}
           </div>
-          <Link href={`/quiz/${quizId}/edit`}>
-            <Button variant="outline" className="border-blue-500/30 hover:bg-blue-900/20">
+          <Link href={`/quiz/${quizId}/edit`} className="flex-1 sm:flex-none">
+            <Button variant="outline" className="w-full sm:w-auto border-blue-500/30 hover:bg-blue-900/20">
               <Pencil className="h-4 w-4 mr-2" />
-              Edit Quiz
+              Edit
             </Button>
           </Link>
           <Button 
@@ -307,17 +341,16 @@ export default function QuizDetailsPage() {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
+      <div className="grid grid-cols-1 gap-6">
           <Card className="bg-gray-900 border-blue-500/30">
             <CardHeader>
               <CardTitle className="text-white">Quiz Details</CardTitle>
-              <CardDescription className="text-blue-200">
+            <CardDescription className="text-blue-200 break-words">
                 {quiz.description || "No description provided"}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div className="bg-gray-800 p-3 rounded-md">
                   <span className="text-gray-400">Created</span>
                   <div className="text-white">{new Date(quiz.created_at).toLocaleDateString()}</div>
@@ -333,6 +366,16 @@ export default function QuizDetailsPage() {
                   <span className="text-gray-400">Questions</span>
                   <div className="text-white">{quiz.questions.length}</div>
                 </div>
+              <div className="bg-gray-800 p-3 rounded-md">
+                <span className="text-gray-400">Submissions</span>
+                <div className="text-white">
+                  {submissionCountLoading ? (
+                    <div className="h-5 w-5 animate-pulse bg-gray-700 rounded"></div>
+                  ) : (
+                    quiz.submission_count || 0
+                  )}
+                </div>
+              </div>
                 {quiz.join_code && (
                   <div className="bg-gray-800 p-3 rounded-md">
                     <span className="text-gray-400">Join Code</span>
@@ -350,20 +393,18 @@ export default function QuizDetailsPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
         
-        <div>
-          <Card className="bg-gray-900 border-blue-500/30 h-full flex flex-col">
+        <Card className="bg-gray-900 border-blue-500/30 flex flex-col">
             <CardHeader>
               <CardTitle className="text-white">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 flex-grow">
-              <Link href={`/quiz/take/${quizId}`} className="w-full">
-                <Button className="w-full bg-green-600 hover:bg-green-700 justify-start">
-                  <Play className="h-4 w-4 mr-2" />
-                  Take Quiz
-                </Button>
-              </Link>
+            <Link href={`/quiz/take/${quizId}`} className="w-full">
+              <Button className="w-full bg-green-600 hover:bg-green-700 justify-start">
+                <Play className="h-4 w-4 mr-2" />
+                Take Quiz
+              </Button>
+            </Link>
               <Link href={`/quiz/${quizId}/edit`} className="w-full">
                 <Button variant="outline" className="w-full justify-start">
                   <Plus className="h-4 w-4 mr-2" />
@@ -380,11 +421,10 @@ export default function QuizDetailsPage() {
               </Button>
             </CardContent>
           </Card>
-        </div>
       </div>
       
       <div className="space-y-4">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <h2 className="text-xl font-bold text-white">Questions</h2>
           <Link href={`/quiz/${quizId}/edit`}>
             <Button className="text-sm bg-blue-600 hover:bg-blue-700">
@@ -399,14 +439,14 @@ export default function QuizDetailsPage() {
             {quiz.questions.map((question, index) => (
               <Card key={question.id} className="bg-gray-900 border-blue-500/30">
                 <CardHeader>
-                  <CardTitle className="text-lg text-white flex justify-between">
-                    <div className="flex items-center">
-                      <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center mr-3 text-sm">
+                  <CardTitle className="text-lg text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 w-full overflow-hidden">
+                      <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center mr-3 text-sm flex-shrink-0">
                         {index + 1}
                       </span>
-                      <span>{question.question}</span>
+                      <span className="break-words line-clamp-2">{question.question}</span>
                     </div>
-                    <Link href={`/quiz/${quizId}/edit`}>
+                    <Link href={`/quiz/${quizId}/edit`} className="flex-shrink-0">
                       <Button variant="ghost" size="icon" className="h-6 w-6">
                         <Pencil className="h-4 w-4 text-blue-400" />
                       </Button>
@@ -414,7 +454,7 @@ export default function QuizDetailsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {question.options.map((option, optIndex) => (
                       <div 
                         key={option.id}
@@ -424,13 +464,13 @@ export default function QuizDetailsPage() {
                             : 'bg-gray-800 text-gray-300'
                         }`}
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full bg-gray-700 h-6 w-6 flex items-center justify-center text-xs">
+                        <div className="flex items-start gap-2">
+                          <span className="rounded-full bg-gray-700 h-6 w-6 flex items-center justify-center text-xs flex-shrink-0">
                             {String.fromCharCode(65 + optIndex)}
                           </span>
-                          <span>{option.option_text}</span>
+                          <span className="break-words">{option.option_text}</span>
                           {option.is_correct && (
-                            <span className="ml-auto text-xs font-medium bg-green-800 px-2 py-1 rounded-full text-green-200">
+                            <span className="ml-auto text-xs font-medium bg-green-800 px-2 py-1 rounded-full text-green-200 flex-shrink-0">
                               Correct
                             </span>
                           )}

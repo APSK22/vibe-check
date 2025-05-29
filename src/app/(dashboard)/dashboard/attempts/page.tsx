@@ -51,116 +51,42 @@ export default function MyAttemptsPage() {
       try {
         console.log("Fetching attempts for user:", user.id);
         
-        // First, fetch all quiz submissions for this user with a DIRECT JOIN
-        // This simplifies the query and avoids nested arrays
-        const { data: submissionsData, error: submissionsError } = await supabase
-          .from('quiz_submissions')
-          .select(`
-            id,
-            quiz_id,
-            completed_at,
-            score,
-            max_score,
-            user_id
-          `)
-          .eq('user_id', user.id)
-          .order('completed_at', { ascending: false });
-        
-        debugData.submissionsQuery = "Completed";
-        debugData.submissionsCount = submissionsData?.length || 0;
-        debugData.submissionsError = submissionsError?.message || null;
-        
-        if (submissionsError) {
-          console.error("Error fetching submissions:", submissionsError);
-          setError("Failed to load your quiz attempts");
-          setDebug(debugData);
-          setIsLoading(false);
-          return;
-        }
-        
-        if (!submissionsData || submissionsData.length === 0) {
-          console.log("No quiz submissions found");
-          setAttempts([]);
-          setDebug(debugData);
-          setIsLoading(false);
-          return;
-        }
-        
-        console.log("Found quiz submissions:", submissionsData.length);
-        
-        // Fetch quiz details for all quiz_ids in one go
-        const quizIds = submissionsData.map(sub => sub.quiz_id);
-        const { data: quizData, error: quizError } = await supabase
-          .from('quizzes')
-          .select('id, title, description, quiz_type')
-          .in('id', quizIds);
-        
-        debugData.quizzesQuery = "Completed";
-        debugData.quizzesCount = quizData?.length || 0;
-        debugData.quizzesError = quizError?.message || null;
-        
-        if (quizError) {
-          console.error("Error fetching quiz details:", quizError);
-        }
-        
-        // Create a map of quiz details for efficient lookup
-        const quizMap = new Map();
-        if (quizData) {
-          quizData.forEach(quiz => {
-            quizMap.set(quiz.id, quiz);
-          });
-        }
-        
-        // Fetch vibe results for all submissions in one go
-        const submissionIds = submissionsData.map(sub => sub.id);
-        const { data: vibeData, error: vibeError } = await supabase
-          .from('vibe_results')
-          .select('submission_id, vibe_analysis, vibe_categories')
-          .in('submission_id', submissionIds);
-        
-        debugData.vibeQuery = "Completed";
-        debugData.vibeCount = vibeData?.length || 0;
-        debugData.vibeError = vibeError?.message || null;
-        
-        if (vibeError) {
-          console.log("Error fetching vibe results:", vibeError);
-        }
-        
-        // Create a map of vibe results for efficient lookup
-        const vibeMap = new Map();
-        if (vibeData) {
-          vibeData.forEach(vibe => {
-            vibeMap.set(vibe.submission_id, vibe);
-          });
-        }
-        
-        // Combine all the data
-        const combinedAttempts = submissionsData.map(submission => {
-          const quiz = quizMap.get(submission.quiz_id) || { 
-            title: "Unknown Quiz", 
-            description: "", 
-            quiz_type: "scored" 
-          };
-          
-          const vibe = vibeMap.get(submission.id);
-          
-          return {
-            id: submission.id,
-            quiz_id: submission.quiz_id,
-            completed_at: submission.completed_at,
-            score: submission.score,
-            max_score: submission.max_score,
-            quiz_title: quiz.title,
-            quiz_description: quiz.description,
-            quiz_type: quiz.quiz_type || "scored",
-            vibe_analysis: vibe?.vibe_analysis,
-            vibe_categories: vibe?.vibe_categories
-          };
+        // Use our admin API to fetch attempts
+        const response = await fetch('/api/quiz/get-attempts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
         });
         
-        console.log("Combined attempts data:", combinedAttempts);
-        setAttempts(combinedAttempts);
-        debugData.finalAttemptsCount = combinedAttempts.length;
+        debugData.apiResponse = {
+          status: response.status,
+          ok: response.ok
+        };
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("Error from API:", errorData);
+          setError(errorData.error || "Failed to load your quiz attempts");
+          setDebug(debugData);
+          setIsLoading(false);
+          return;
+        }
+        
+        const data = await response.json();
+        
+        debugData.attemptsFetched = data.attempts?.length || 0;
+        
+        if (!data.success || !data.attempts) {
+          console.error("Invalid response format:", data);
+          setError("Invalid response from server");
+          setDebug(debugData);
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log("Attempts loaded successfully:", data.attempts.length);
+        setAttempts(data.attempts);
       } catch (err) {
         console.error("Error in fetchAttempts:", err);
         setError("An unexpected error occurred while loading your attempts");
@@ -172,7 +98,7 @@ export default function MyAttemptsPage() {
     }
     
     fetchAttempts();
-  }, [user, supabase]);
+  }, [user]);
   
   const handleDeleteAttempt = async (attemptId: string) => {
     if (!confirm("Are you sure you want to delete this attempt? This cannot be undone.")) {
@@ -180,24 +106,23 @@ export default function MyAttemptsPage() {
     }
     
     try {
-      // First delete related vibe_results if they exist
-      await supabase
-        .from('vibe_results')
-        .delete()
-        .eq('submission_id', attemptId);
+      // Use our admin API to delete the attempt
+      const response = await fetch('/api/quiz/delete-attempt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ attemptId })
+      });
       
-      // Then delete the submission
-      const { error: submissionDeleteError } = await supabase
-        .from('quiz_submissions')
-        .delete()
-        .eq('id', attemptId);
-        
-      if (submissionDeleteError) {
-        console.error("Error deleting submission:", submissionDeleteError);
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error deleting attempt:", errorData);
         toast.error("Failed to delete attempt");
         return;
       }
       
+      // Remove from UI if successful
       setAttempts(attempts.filter(a => a.id !== attemptId));
       toast.success("Attempt deleted successfully");
     } catch (err) {
@@ -246,53 +171,36 @@ export default function MyAttemptsPage() {
       if (attempt && !attempt.user_answers) {
         setLoadingAnswers(true);
         try {
-          // Fetch the questions for this quiz
-          const { data: questions, error: questionsError } = await supabase
-            .from('questions')
-            .select('id, question, order_num')
-            .eq('quiz_id', attempt.quiz_id)
-            .order('order_num');
-            
-          if (questionsError) {
-            console.error("Error fetching questions:", questionsError);
+          // Use our admin API to fetch answers
+          const response = await fetch('/api/quiz/get-attempt-answers', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              attemptId: attempt.id,
+              quizId: attempt.quiz_id
+            })
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Error fetching answers:", errorData);
             return;
           }
           
-          // Fetch user answers
-          const { data: userAnswersData, error: answersError } = await supabase
-            .from('user_answers')
-            .select(`
-              question_id,
-              selected_option_id,
-              is_correct,
-              options:options!selected_option_id(option_text)
-            `)
-            .eq('submission_id', attemptId);
-            
-          if (answersError) {
-            console.error("Error fetching user answers:", answersError);
-            return;
+          const data = await response.json();
+          
+          if (data.success && data.answers) {
+            // Update the attempts array with the answers
+            setAttempts(prevAttempts => 
+              prevAttempts.map(a => 
+                a.id === attemptId 
+                  ? { ...a, user_answers: data.answers } 
+                  : a
+              )
+            );
           }
-          
-          // Map question IDs to questions
-          const questionMap = new Map();
-          questions?.forEach(q => questionMap.set(q.id, q));
-          
-          // Format user answers
-          const formattedAnswers = userAnswersData?.map(answer => ({
-            question: questionMap.get(answer.question_id)?.question || "Unknown Question",
-            selected_option: answer.options?.[0]?.option_text || "Unknown Option",
-            is_correct: answer.is_correct
-          })) || [];
-          
-          // Update the attempts array with the answers
-          setAttempts(prevAttempts => 
-            prevAttempts.map(a => 
-              a.id === attemptId 
-                ? { ...a, user_answers: formattedAnswers } 
-                : a
-            )
-          );
         } catch (err) {
           console.error("Error loading answers:", err);
         } finally {
@@ -522,7 +430,11 @@ export default function MyAttemptsPage() {
                     </CardDescription>
                   </div>
                   <button
-                    onClick={() => handleDeleteAttempt(attempt.id)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDeleteAttempt(attempt.id);
+                    }}
                     className="text-gray-400 hover:text-red-400 transition-colors p-1"
                     title="Delete attempt"
                   >

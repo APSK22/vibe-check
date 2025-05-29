@@ -67,88 +67,63 @@ export default function TakeQuizPage() {
       
       try {
         setIsLoading(true);
+        // Clear any previous errors
+        setError(null);
         
-        // Load quiz details - always load basic quiz info
-        const { data: quizData, error: quizError } = await supabase
-          .from('quizzes')
-          .select('*')
-          .eq('id', quizId)
-          .single();
+        console.log(`[Quiz Take] Loading quiz ${quizId}`);
         
-        if (quizError) {
-          console.error('Error loading quiz:', quizError);
-          setError('Failed to load quiz');
-          setIsLoading(false);
-          return;
-        }
-        
-        // If not signed in, just store the basic quiz info
-        if (!isSignedIn) {
-          setQuiz({
-            ...quizData,
-            questions: []
-          });
-          setIsLoading(false);
-          return;
-        }
-        
-        // If signed in, load full quiz data with questions
-        // Load questions
-        const { data: questionsData, error: questionsError } = await supabase
-          .from('questions')
-          .select('*')
-          .eq('quiz_id', quizId)
-          .order('order_num');
-        
-        if (questionsError) {
-          console.error('Error loading questions:', questionsError);
-          setError('Failed to load questions');
-          setIsLoading(false);
-          return;
-        }
-        
-        // For each question, load its options
-        const questionsWithOptions = await Promise.all(
-          questionsData.map(async (q) => {
-            const { data: optionsData, error: optionsError } = await supabase
-              .from('options')
-              .select('*')
-              .eq('question_id', q.id)
-              .order('order_num');
-            
-            if (optionsError) {
-              console.error('Error loading options:', optionsError);
-              return {
-                ...q,
-                options: []
-              };
-            }
-            
-            return {
-              ...q,
-              options: optionsData
-            };
-          })
-        );
-        
-        // Combine quiz and questions
-        setQuiz({
-          ...quizData,
-          questions: questionsWithOptions
+        // Use the new access API endpoint for direct link access
+        const response = await fetch("/api/quiz/access", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ quizId }),
         });
+        
+        console.log(`[Quiz Take] API response status: ${response.status}`);
+        
+        const data = await response.json();
+        console.log(`[Quiz Take] Response data:`, data);
+        
+        if (!response.ok) {
+          console.error('[Quiz Take] Error fetching quiz:', data);
+          
+          if (response.status === 404) {
+            setError('Quiz not found. It may have been deleted by the creator.');
+          } else {
+            setError(data.error || 'Failed to load quiz');
+          }
+          
+          setIsLoading(false);
+          return;
+        }
+        
+        if (!data.success || !data.quiz) {
+          console.error('[Quiz Take] Invalid response format:', data);
+          setError('Invalid response from server');
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log(`[Quiz Take] Quiz loaded successfully with ${data.quiz.questions?.length || 0} questions`);
+        
+        // Set the quiz data
+        setQuiz(data.quiz);
         
         // Initialize start time
         setStartTime(Date.now());
+        
       } catch (error) {
-        console.error('Error in loadQuizData:', error);
-        setError('An unexpected error occurred');
+        console.error('[Quiz Take] Error in loadQuizData:', error);
+        setError('An unexpected error occurred while loading the quiz');
       } finally {
         setIsLoading(false);
       }
     }
     
     loadQuizData();
-  }, [quizId, supabase, isSignedIn]);
+  }, [quizId]);
   
   // Timer for tracking time spent
   useEffect(() => {
@@ -312,40 +287,31 @@ export default function TakeQuizPage() {
       const finalScore = calculateScore();
       setScore(finalScore);
       
-      // Record submission in database
-      const { data: submission, error: submissionError } = await supabase
-        .from('quiz_submissions')
-        .insert({
-          quiz_id: quizId,
-          user_id: user.id,
+      // Use our API to record the submission
+      const response = await fetch("/api/quiz/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          quizId,
+          userId: user.id,
           score: finalScore.correct,
-          max_score: finalScore.total
-        })
-        .select()
-        .single();
+          maxScore: finalScore.total,
+          answers: userAnswers,
+        }),
+      });
       
-      if (submissionError) {
-        console.error('Error recording submission:', submissionError);
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        console.error('Error recording submission:', data.error);
         throw new Error('Failed to record submission');
       }
       
-      // Record user answers
-      for (const questionId in userAnswers) {
-        const optionId = userAnswers[questionId];
-        const question = quiz.questions.find(q => q.id === questionId);
-        const option = question?.options.find(o => o.id === optionId);
-        
-        await supabase.from('user_answers').insert({
-          submission_id: submission.id,
-          question_id: questionId,
-          selected_option_id: optionId,
-          is_correct: option?.is_correct || false
-        });
-      }
-      
       // For vibe quizzes, get the vibe analysis
-      if (quiz.quiz_type === "vibe") {
-        await fetchVibeAnalysis(submission.id);
+      if (quiz.quiz_type === "vibe" && data.submissionId) {
+        await fetchVibeAnalysis(data.submissionId);
       } else {
         // Trigger confetti effect if score is good on scored quizzes
         if (finalScore.correct / finalScore.total >= 0.7) {
@@ -693,3 +659,4 @@ export default function TakeQuizPage() {
     </div>
   );
 } 
+ 

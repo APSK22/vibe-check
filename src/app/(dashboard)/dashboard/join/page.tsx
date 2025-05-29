@@ -60,17 +60,32 @@ export default function JoinQuizPage() {
           console.error("Error fetching public quizzes:", publicError);
           toast.error("Failed to load public quizzes");
         } else {
-          // Fetch submission count for each quiz
+          // Get submission count using our API endpoint
           const publicQuizzesWithMetadata = await Promise.all((publicData || []).map(async (quiz) => {
-            // Get submission count
-            const { count } = await supabase
-              .from("quiz_submissions")
-              .select("id", { count: 'exact', head: true })
-              .eq("quiz_id", quiz.id);
+            let submissionCount = 0;
+            
+            try {
+              const response = await fetch('/api/quiz/simple-count', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ quizId: quiz.id }),
+              });
+              
+              if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                  submissionCount = data.count;
+                }
+              }
+            } catch (countError) {
+              console.error(`[Join Quiz] Error counting submissions for quiz ${quiz.id}:`, countError);
+            }
               
             return {
               ...quiz,
-              submission_count: count || 0
+              submission_count: submissionCount
             };
           }));
           
@@ -95,16 +110,32 @@ export default function JoinQuizPage() {
         if (myError) {
           console.error("Error fetching user's quizzes:", myError);
         } else {
-          // Get submission count for each quiz
+          // Get submission count for each quiz using our API endpoint
           const myQuizzesWithMetadata = await Promise.all((myData || []).map(async (quiz) => {
-            const { count } = await supabase
-              .from("quiz_submissions")
-              .select("id", { count: 'exact', head: true })
-              .eq("quiz_id", quiz.id);
+            let submissionCount = 0;
+            
+            try {
+              const response = await fetch('/api/quiz/simple-count', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ quizId: quiz.id }),
+              });
               
+              if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                  submissionCount = data.count;
+                }
+              }
+            } catch (countError) {
+              console.error(`[Join Quiz] Error counting submissions for quiz ${quiz.id}:`, countError);
+            }
+            
             return {
               ...quiz,
-              submission_count: count || 0
+              submission_count: submissionCount
             };
           }));
           
@@ -127,20 +158,29 @@ export default function JoinQuizPage() {
     }
     
     try {
-      // Search for quiz by ID (assuming quizCode is the UUID)
-      const { data, error } = await supabase
-        .from("quizzes")
-        .select("id")
-        .eq("id", quizCode)
-        .single();
-        
-      if (error || !data) {
+      // Use our access API to check if the quiz exists and verify it
+      const response = await fetch("/api/quiz/access", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ quizId: quizCode }),
+      });
+      
+      if (!response.ok) {
         toast.error("Invalid or expired quiz code");
         return;
       }
       
-      // Navigate to the quiz
-      router.push(`/quiz/take/${data.id}`);
+      const data = await response.json();
+      
+      if (!data.success || !data.quiz) {
+        toast.error("Invalid or expired quiz code");
+        return;
+      }
+      
+      // Success - navigate to the quiz
+      router.push(`/quiz/take/${quizCode}`);
     } catch (error) {
       console.error("Error joining quiz by code:", error);
       toast.error("Failed to join quiz");
@@ -184,12 +224,12 @@ export default function JoinQuizPage() {
       <Card className={`h-full flex flex-col hover:border-blue-500/50 transition-all ${quiz.quiz_type === 'vibe' ? 'border-purple-500/30' : 'border-blue-500/30'}`}>
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <CardTitle className="flex items-center gap-2">
                 {quiz.quiz_type === 'vibe' && (
-                  <Sparkles className="h-4 w-4 text-purple-400" />
+                  <Sparkles className="h-4 w-4 flex-shrink-0 text-purple-400" />
                 )}
-                <span className="line-clamp-1">{quiz.title}</span>
+                <span className="line-clamp-1 break-words">{quiz.title}</span>
               </CardTitle>
               {showDelete && (
                 <CardDescription>
@@ -200,7 +240,7 @@ export default function JoinQuizPage() {
             {showDelete && (
               <button
                 onClick={() => handleDeleteQuiz(quiz.id)}
-                className="text-gray-400 hover:text-red-400 transition-colors p-1"
+                className="text-gray-400 hover:text-red-400 transition-colors p-1 ml-2"
                 title="Delete quiz"
               >
                 <Trash2 size={16} />
@@ -209,23 +249,23 @@ export default function JoinQuizPage() {
           </div>
         </CardHeader>
         <CardContent className="py-2 flex-grow">
-          <p className="text-gray-300 line-clamp-2 text-sm mb-3">
+          <p className="text-gray-300 line-clamp-2 text-sm mb-3 break-words">
             {quiz.description || `A ${quiz.quiz_type === 'vibe' ? 'vibe check' : 'quiz'}`}
           </p>
-          <div className="flex justify-between text-xs text-gray-400">
+          <div className="flex flex-wrap justify-between text-xs text-gray-400 gap-y-2">
             <div className="flex items-center gap-1">
-              <Users size={12} />
-              <span>{quiz.submission_count} attempts</span>
+              <Users size={12} className="flex-shrink-0" />
+              <span>{quiz.submission_count !== undefined ? `${quiz.submission_count} attempts` : "..."}</span>
             </div>
             <div className="flex items-center gap-1">
-              <Calendar size={12} />
+              <Calendar size={12} className="flex-shrink-0" />
               <span>{format(new Date(quiz.created_at), "MMM d, yyyy")}</span>
             </div>
           </div>
         </CardContent>
         <CardFooter className="pt-2">
           <Link href={`/quiz/take/${quiz.id}`} className="w-full">
-            <Button className="w-full bg-blue-600 hover:bg-blue-700">
+            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-sm">
               {quiz.quiz_type === 'vibe' ? 'Take Vibe Check' : 'Take Quiz'}
             </Button>
           </Link>
@@ -237,14 +277,14 @@ export default function JoinQuizPage() {
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-white">Join a Quiz</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">Join a Quiz</h1>
       </div>
       
       <Tabs defaultValue="code" className="w-full">
-        <TabsList>
-          <TabsTrigger value="code">Enter Quiz Code</TabsTrigger>
-          <TabsTrigger value="public">Browse Public Quizzes</TabsTrigger>
-          <TabsTrigger value="my">My Quizzes</TabsTrigger>
+        <TabsList className="w-full flex">
+          <TabsTrigger value="code" className="flex-1">Enter Quiz Code</TabsTrigger>
+          <TabsTrigger value="public" className="flex-1">Public Quizzes</TabsTrigger>
+          <TabsTrigger value="my" className="flex-1">My Quizzes</TabsTrigger>
         </TabsList>
         
         <TabsContent value="code" className="pt-4">
@@ -262,15 +302,15 @@ export default function JoinQuizPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-4">
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <Input 
-                      placeholder="Enter quiz ID (e.g., 123e4567-e89b-...)"
+                      placeholder="Enter quiz ID"
                       className="flex-1"
                       value={quizCode}
                       onChange={(e) => setQuizCode(e.target.value)}
                     />
                     <Button 
-                      className="bg-blue-600 hover:bg-blue-700"
+                      className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
                       onClick={handleJoinByCode}
                     >
                       Join
