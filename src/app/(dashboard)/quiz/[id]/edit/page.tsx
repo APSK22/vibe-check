@@ -41,7 +41,7 @@ interface Quiz {
 
 export default function EditQuizPage() {
   const params = useParams();
-  const quizId = params.id as string;
+  const quizId = params?.id as string;
   const router = useRouter();
   const supabase = useSupabase();
   const { user } = useUser();
