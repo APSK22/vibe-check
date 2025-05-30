@@ -42,7 +42,6 @@ An AI-powered quiz platform that lets you create quizzes instantly, discover per
 
 ### 🔐 Security & Performance
 - **Secure Auth**: Enterprise-grade sign-in using Clerk.
-- **Row-Level Security**: Fine-grained Supabase access control.
 - **Optimized Loading**: Lightning-fast using Next.js App Router.
 
 ## 🛠️ Tech Stack
