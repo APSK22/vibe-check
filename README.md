@@ -19,7 +19,7 @@ An AI-powered quiz platform that lets you create quizzes instantly, discover per
 - **Smart Options**: Each question includes AI-generated, plausible multiple-choice answers.
 
 ### 👨‍🎓 User Experience
-- **Interactive Dashboard**: Track and manage quizzes with detailed statistics.
+- **Interactive Dashboard**: Track and manage quizzes .
 - **Responsive Design**: Optimized for desktop, tablet, and mobile use.
 - **Real-Time Feedback**: Get immediate results post-quiz.
 - **Progress Indicators**: Visual cues for quiz completion and time tracking.
@@ -37,7 +37,7 @@ An AI-powered quiz platform that lets you create quizzes instantly, discover per
 
 ### 📤 Sharing & Social Engagement
 - **Public or Private Sharing**: Control visibility for each quiz.
-- **Direct Links**: Share quizzes instantly with friends and colleagues.
+- **Direct Links**: Share quizzes instantly with friends and colleagues via whatsapp/facebook/mail.
 - **Attempt History**: View past attempts and results.
 
 ### 🔐 Security & Performance
