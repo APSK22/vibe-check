@@ -10,13 +10,40 @@ An AI-powered quiz platform that lets you create quizzes instantly, discover per
 
 ## ✨ Features
 
-- **🪄 AI Quiz Generation**: Create complete quizzes on any topic in seconds using Google Gemini Flash 2.0
-- **🧠 Personality Analysis**: Get AI-powered insights about your personality based on quiz answers
-- **🔒 Secure Authentication**: Enterprise-grade authentication with Clerk
-- **🚀 Modern UI**: Responsive and animated interface built with Radix UI and Tailwind CSS
-- **📊 Quiz Dashboard**: Manage your quizzes with statistics and attempt history
-- **🔍 Detailed Results**: View color-coded answers and expandable details for each attempt
-- **📱 Mobile Friendly**: Fully functional on all devices with adaptive layouts
+## ✨ Key Features
+
+### 🔧 AI-Powered Quiz Creation
+- **Instant Generation**: Build complete quizzes on any topic in seconds.
+- **Custom Difficulty**: Select from easy, medium, or hard levels.
+- **Flexible Quiz Modes**: Choose between scored quizzes or personality-based “vibe checks”.
+- **Smart Options**: Each question includes AI-generated, plausible multiple-choice answers.
+
+### 👨‍🎓 User Experience
+- **Interactive Dashboard**: Track and manage quizzes with detailed statistics.
+- **Responsive Design**: Optimized for desktop, tablet, and mobile use.
+- **Real-Time Feedback**: Get immediate results post-quiz.
+- **Progress Indicators**: Visual cues for quiz completion and time tracking.
+
+### 🧠 Personality Analysis
+- **AI-Powered Insights**: Personality reports based on quiz responses.
+- **Trait Categorization**: Results grouped by traits and behavior types.
+- **Visual Feedback**: Stylish animations and easy-to-understand summaries.
+
+### 🧩 Backend
+- **Supabase PostgreSQL**: Structured, scalable, and relational data storage.
+- **Row-Level Security (RLS)**: Granular user-level data access protection.
+- **Server Actions**: Handles secure logic like quiz scoring and AI integration.
+- **Optimized APIs**: Clean endpoints for quiz data, submissions, and feedback.
+
+### 📤 Sharing & Social Engagement
+- **Public or Private Sharing**: Control visibility for each quiz.
+- **Direct Links**: Share quizzes instantly with friends and colleagues.
+- **Attempt History**: View past attempts and results.
+
+### 🔐 Security & Performance
+- **Secure Auth**: Enterprise-grade sign-in using Clerk.
+- **Row-Level Security**: Fine-grained Supabase access control.
+- **Optimized Loading**: Lightning-fast using Next.js App Router.
 
 ## 🛠️ Tech Stack
 
